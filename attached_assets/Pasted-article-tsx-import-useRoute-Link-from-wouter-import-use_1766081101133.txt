@@ -1,0 +1,217 @@
+article.tsx
+import { useRoute, Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft, Clock, Calendar, User, Share2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { ArticleWithAuthor } from "@shared/schema";
+
+function formatDate(date: Date | string | null) {
+  if (!date) return "";
+  return new Date(date).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function getReadTime(content: string) {
+  const wordsPerMinute = 200;
+  const words = content.split(/\s+/).length;
+  const minutes = Math.ceil(words / wordsPerMinute);
+  return `${minutes} min de lecture`;
+}
+
+function ArticlePageSkeleton() {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <Skeleton className="h-10 w-32 mb-8" />
+        <Skeleton className="aspect-video w-full rounded-lg mb-8" />
+        <Skeleton className="h-6 w-24 mb-4" />
+        <Skeleton className="h-12 w-full mb-4" />
+        <div className="flex items-center gap-4 mb-8">
+          <Skeleton className="h-12 w-12 rounded-full" />
+          <div>
+            <Skeleton className="h-5 w-32 mb-2" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RelatedArticleCard({ article }: { article: ArticleWithAuthor }) {
+  return (
+    <Link href={`/article/${article.id}`}>
+      <Card className="overflow-visible cursor-pointer hover-elevate active-elevate-2">
+        <div className="aspect-video overflow-hidden rounded-t-lg">
+          <img
+            src={article.imageUrl || "https://images.unsplash.com/photo-1461896836934-rvba5b-sport?w=400&h=225&fit=crop"}
+            alt={article.title}
+            className="w-full h-full object-cover"
+          />
+        </div>
+        <CardContent className="p-4">
+          <Badge variant="secondary" className="mb-2">
+            {article.category}
+          </Badge>
+          <h3 className="font-bold line-clamp-2">{article.title}</h3>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
+export default function ArticlePage() {
+  const [, params] = useRoute("/article/:id");
+  const articleId = params?.id;
+
+  const { data: article, isLoading, error } = useQuery<ArticleWithAuthor>({
+    queryKey: ["/api/articles", articleId],
+    enabled: !!articleId,
+  });
+
+  const { data: relatedArticles } = useQuery<ArticleWithAuthor[]>({
+    queryKey: ["/api/articles"],
+    select: (articles) =>
+      articles
+        .filter((a) => a.id !== articleId && a.category === article?.category)
+        .slice(0, 3),
+    enabled: !!article,
+  });
+
+  if (isLoading) {
+    return <ArticlePageSkeleton />;
+  }
+
+  if (error || !article) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Article non trouvé</h1>
+          <p className="text-muted-foreground mb-6">
+            L'article que vous recherchez n'existe pas ou a été supprimé.
+          </p>
+          <Link href="/">
+            <Button>Retour à l'accueil</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const authorName = [article.author?.firstName, article.author?.lastName]
+    .filter(Boolean)
+    .join(" ") || "Auteur";
+  const initials = authorName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            <Link href="/">
+              <h1 className="text-xl md:text-2xl font-bold text-primary cursor-pointer">
+                Allo-SportsHub
+              </h1>
+            </Link>
+            <Link href="/">
+              <Button variant="ghost" className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Retour
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        {/* Hero Image */}
+        <div className="aspect-video rounded-lg overflow-hidden mb-8">
+          <img
+            src={article.imageUrl || "https://images.unsplash.com/photo-1461896836934-rvba5b-sport?w=1200&h=675&fit=crop"}
+            alt={article.title}
+            className="w-full h-full object-cover"
+          />
+        </div>
+
+        {/* Category Badge */}
+        <Badge className="mb-4">{article.category}</Badge>
+
+        {/* Title */}
+        <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6" data-testid="text-article-title">
+          {article.title}
+        </h1>
+
+        {/* Author & Meta */}
+        <div className="flex flex-wrap items-center gap-6 mb-8 pb-8 border-b">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-12 w-12">
+              <AvatarImage src={article.author?.profileImageUrl || undefined} />
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+            <div>
+              <p className="font-semibold" data-testid="text-author-name">{authorName}</p>
+              <p className="text-sm text-muted-foreground">Auteur</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Calendar className="h-4 w-4" />
+              <span>{formatDate(article.createdAt)}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Clock className="h-4 w-4" />
+              <span>{getReadTime(article.content)}</span>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" className="ml-auto gap-2">
+            <Share2 className="h-4 w-4" />
+            Partager
+          </Button>
+        </div>
+
+        {/* Content */}
+        <article className="prose prose-lg dark:prose-invert max-w-none mb-16">
+          {article.content.split("\n\n").map((paragraph, index) => (
+            <p key={index}>{paragraph}</p>
+          ))}
+        </article>
+
+        {/* Related Articles */}
+        {relatedArticles && relatedArticles.length > 0 && (
+          <section>
+            <h2 className="text-2xl font-bold mb-6">Articles similaires</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {relatedArticles.map((related) => (
+                <RelatedArticleCard key={related.id} article={related} />
+              ))}
+            </div>
+          </section>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t bg-muted/30 mt-16">
+        <div className="max-w-7xl mx-auto px-4 py-8 text-center text-sm text-muted-foreground">
+          <p>© 2024 Allo-SportsHub. Tous droits réservés.</p>
+        </div>
+      </footer>
+    </div>
+  );
+}
