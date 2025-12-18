@@ -29,7 +29,23 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    // Build absolute URL from queryKey - first element should start with "/"
+    // Additional elements are joined with "/"
+    let url: string;
+    if (queryKey.length === 1) {
+      url = queryKey[0] as string;
+    } else {
+      // Join all parts, ensuring proper URL structure
+      const parts = queryKey.map(String);
+      url = parts[0] + "/" + parts.slice(1).join("/");
+    }
+    
+    // Ensure URL starts with "/" for absolute path
+    if (!url.startsWith("/")) {
+      url = "/" + url;
+    }
+    
+    const res = await fetch(url, {
       credentials: "include",
     });
 
