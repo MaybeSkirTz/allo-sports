@@ -43,9 +43,27 @@ const editorSchema = z.object({
   content: z.string().min(50, "Le contenu doit contenir au moins 50 caractères"),
   category: z.string().min(1, "Sélectionnez une catégorie"),
   imageUrl: z.string().url("URL invalide").optional().or(z.literal("")),
+  imageCredit: z.string().optional(),
   published: z.boolean().default(false),
   featured: z.boolean().default(false),
 });
+
+const slugify = (str: string) =>
+  str
+    .toLowerCase()
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const openTwitterShare = (title: string, slug: string) => {
+  const articleUrl = `${window.location.origin}/article/${slug}`;
+  const tweetText = `🚀 Nouvel article : ${title}\n\nÀ lire ici 👇\n`;
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(articleUrl)}`;
+  window.open(twitterUrl, '_blank', 'width=550,height=420');
+};
 
 type EditorForm = z.infer<typeof editorSchema>;
 
@@ -75,6 +93,7 @@ export default function Editor() {
       content: "",
       category: "",
       imageUrl: "",
+      imageCredit: "",
       published: false,
       featured: false,
     },
@@ -88,37 +107,37 @@ export default function Editor() {
         content: existingArticle.content,
         category: existingArticle.category,
         imageUrl: existingArticle.imageUrl || "",
+        imageCredit: existingArticle.imageCredit || "",
         published: existingArticle.published || false,
         featured: existingArticle.featured || false,
       });
     }
   }, [existingArticle, form]);
 
-  const createMutation = useMutation({
+const createMutation = useMutation({
     mutationFn: async (data: EditorForm) => {
       const payload = {
         ...data,
-        authorId: user?.id,
+        slug: slugify(data.title), // Génération du slug
         imageUrl: data.imageUrl || null,
       };
       const res = await apiRequest("POST", "/api/articles", payload);
-      return res;
+      return res.json(); // On retourne le JSON pour récupérer le slug créé
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/articles"] });
       queryClient.invalidateQueries({ queryKey: ["/api/articles/my"] });
-      toast({
-        title: "Article créé",
-        description: "Votre article a été créé avec succès.",
-      });
+      toast({ title: "Article créé", description: "Votre article a été créé avec succès." });
+
+      // PARTAGE X : Si publié est coché
+      if (variables.published) {
+        openTwitterShare(variables.title, data.slug);
+      }
+
       setLocation("/dashboard");
     },
     onError: (error: any) => {
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible de créer l'article.",
-        variant: "destructive",
-      });
+      toast({ title: "Erreur", description: error.message || "Impossible de créer l'article.", variant: "destructive" });
     },
   });
 
@@ -126,26 +145,27 @@ export default function Editor() {
     mutationFn: async (data: EditorForm) => {
       const payload = {
         ...data,
+        slug: slugify(data.title), // Mise à jour du slug si le titre change
         imageUrl: data.imageUrl || null,
       };
-      await apiRequest("PATCH", `/api/articles/${articleId}`, payload);
+      const res = await apiRequest("PATCH", `/api/articles/${articleId}`, payload);
+      return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/articles"] });
       queryClient.invalidateQueries({ queryKey: ["/api/articles/my"] });
       queryClient.invalidateQueries({ queryKey: ["/api/articles", articleId] });
-      toast({
-        title: "Article modifié",
-        description: "Vos modifications ont été enregistrées.",
-      });
+      toast({ title: "Article modifié", description: "Vos modifications ont été enregistrées." });
+
+      // PARTAGE X : Si publié est coché
+      if (variables.published) {
+        openTwitterShare(variables.title, data.slug);
+      }
+
       setLocation("/dashboard");
     },
     onError: (error: any) => {
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible de modifier l'article.",
-        variant: "destructive",
-      });
+      toast({ title: "Erreur", description: error.message || "Impossible de modifier l'article.", variant: "destructive" });
     },
   });
 
@@ -164,7 +184,7 @@ export default function Editor() {
   if (isEditing && isLoadingArticle) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
       </div>
     );
   }
@@ -176,11 +196,11 @@ export default function Editor() {
           <div className="flex items-center justify-between">
             <Link href="/">
               <div className="flex items-center gap-2 cursor-pointer">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-500/80 flex items-center justify-center shadow-lg">
                   <Trophy className="h-5 w-5 text-white" />
                 </div>
                 <h1 className="text-xl font-bold tracking-tight hidden sm:block">
-                  Allo<span className="text-primary">Sports</span>Hub
+                  Allo<span className="text-blue-500"> Sports</span>
                 </h1>
               </div>
             </Link>
@@ -228,7 +248,7 @@ export default function Editor() {
                           <FormControl>
                             <Input 
                               placeholder="Un titre accrocheur pour votre article"
-                              className="text-lg"
+                              className="text-lg focus-visible:ring-blue-500"
                               {...field}
                               data-testid="input-title"
                             />
@@ -248,6 +268,7 @@ export default function Editor() {
                             <Textarea 
                               placeholder="Un court résumé de l'article (apparaît dans les aperçus)"
                               rows={3}
+                              className="text-lg focus-visible:ring-blue-500"
                               {...field}
                               data-testid="input-excerpt"
                             />
@@ -267,7 +288,7 @@ export default function Editor() {
                             <Textarea 
                               placeholder="Rédigez le contenu complet de votre article ici..."
                               rows={15}
-                              className="font-serif leading-relaxed"
+                              className="font-serif leading-relaxed focus-visible:ring-blue-500"
                               {...field}
                               data-testid="input-content"
                             />
@@ -294,8 +315,8 @@ export default function Editor() {
                           <FormLabel>Catégorie</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger data-testid="select-category">
-                                <SelectValue placeholder="Sélectionner une catégorie" />
+                              <SelectTrigger data-testid="select-category" className="focus-visible:ring-blue-500">
+                                <SelectValue placeholder="Sélectionner une catégorie" className="focus-visible:ring-blue-500"/>
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -381,6 +402,7 @@ export default function Editor() {
                           <FormControl>
                             <Input 
                               placeholder="https://exemple.com/image.jpg"
+                              className="focus-visible:ring-blue-500"
                               {...field}
                               data-testid="input-image-url"
                             />
@@ -411,7 +433,24 @@ export default function Editor() {
                     )}
                   </CardContent>
                 </Card>
-
+                <FormField
+  control={form.control}
+  name="imageCredit"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Crédit photo</FormLabel>
+      <FormControl>
+        <Input
+          placeholder="Ex: Getty Images / NHL"
+          className="focus-visible:ring-blue-500"
+          {...field}
+          data-testid="input-image-credit"
+        />
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
                 <Button 
                   type="submit" 
                   className="w-full gap-2 shadow-lg"
@@ -420,7 +459,7 @@ export default function Editor() {
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin blue-500" />
                       {isEditing ? "Enregistrement..." : "Création..."}
                     </>
                   ) : (

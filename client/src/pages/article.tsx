@@ -1,4 +1,5 @@
 import { useRoute, Link } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { 
   ArrowLeft, 
@@ -9,6 +10,13 @@ import {
   Trophy,
   ChevronRight
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -24,7 +32,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   Soccer: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
   ATP: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20",
   WTA: "bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20",
-  F1: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
+  F1: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
 };
 
 function formatDate(date: Date | string | null) {
@@ -80,7 +88,7 @@ function ArticlePageSkeleton() {
 }
 
 function RelatedArticleCard({ article }: { article: ArticleWithAuthor }) {
-  const categoryColor = CATEGORY_COLORS[article.category] || "bg-primary/10 text-primary border-primary/20";
+  const categoryColor = CATEGORY_COLORS[article.category] || "bg-blue-500/10 text-blue-500 border-blue-500/20";
   
   return (
     <Link href={`/article/${article.id}`}>
@@ -96,7 +104,7 @@ function RelatedArticleCard({ article }: { article: ArticleWithAuthor }) {
           <Badge variant="outline" className={`mb-2 text-xs ${categoryColor}`}>
             {article.category}
           </Badge>
-          <h3 className="font-bold line-clamp-2 group-hover:text-primary transition-colors">
+          <h3 className="font-bold line-clamp-2 group-hover:text-blue-500 transition-colors">
             {article.title}
           </h3>
         </CardContent>
@@ -144,11 +152,11 @@ export default function ArticlePage() {
             <div className="flex items-center justify-between gap-4">
               <Link href="/">
                 <div className="flex items-center gap-2 cursor-pointer">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-500/80 flex items-center justify-center shadow-lg">
                     <Trophy className="h-5 w-5 text-white" />
                   </div>
                   <h1 className="text-xl font-bold tracking-tight">
-                    Allo<span className="text-primary">Sports</span>Hub
+                    Allo<span className="text-blue-500"> Sports</span>
                   </h1>
                 </div>
               </Link>
@@ -178,6 +186,34 @@ export default function ArticlePage() {
     );
   }
 
+  const shareUrl =
+  typeof window !== "undefined" ? window.location.href : "";
+
+const shareText = `${article.title} - Allo Sports`;
+
+const shareOnX = () => {
+  window.open(
+    `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+      shareText
+    )}&url=${encodeURIComponent(shareUrl)}`,
+    "_blank"
+  );
+};
+
+const shareOnFacebook = () => {
+  window.open(
+    `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+      shareUrl
+    )}`,
+    "_blank"
+  );
+};
+
+const copyLink = async () => {
+  await navigator.clipboard.writeText(shareUrl);
+  alert("Lien copié dans le presse-papier");
+};
+
   const authorName = article.author 
     ? [article.author.firstName, article.author.lastName].filter(Boolean).join(" ") || "Auteur"
     : "Auteur";
@@ -187,7 +223,7 @@ export default function ArticlePage() {
     .join("")
     .toUpperCase()
     .slice(0, 2) || "AU";
-  const categoryColor = CATEGORY_COLORS[article.category] || "bg-primary/10 text-primary border-primary/20";
+  const categoryColor = CATEGORY_COLORS[article.category] || "bg-blue-500/10 text-blue-500 border-blue-500/20";
 
   return (
     <div className="min-h-screen bg-background">
@@ -196,11 +232,11 @@ export default function ArticlePage() {
           <div className="flex items-center justify-between gap-4">
             <Link href="/">
               <div className="flex items-center gap-2 cursor-pointer">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-500/80 flex items-center justify-center shadow-lg">
                   <Trophy className="h-5 w-5 text-white" />
                 </div>
                 <h1 className="text-xl font-bold tracking-tight hidden sm:block">
-                  Allo<span className="text-primary">Sports</span>Hub
+                  Allo<span className="text-blue-500"> Sports</span>
                 </h1>
               </div>
             </Link>
@@ -225,13 +261,21 @@ export default function ArticlePage() {
           <span className="text-foreground">{article.category}</span>
         </nav>
 
-        <div className="aspect-video rounded-2xl overflow-hidden mb-8 shadow-xl">
-          <img
-            src={article.imageUrl || "https://images.unsplash.com/photo-1461896836934-gy5rba-sport?w=1200&h=675&fit=crop"}
-            alt={article.title}
-            className="w-full h-full object-cover"
-          />
-        </div>
+        <div className="mb-8">
+  <div className="aspect-video rounded-2xl overflow-hidden shadow-xl">
+    <img
+      src={article.imageUrl || "https://images.unsplash.com/photo-1461896836934-gy5rba-sport?w=1200&h=675&fit=crop"}
+      alt={article.title}
+      className="w-full h-full object-cover"
+    />
+  </div>
+
+  {article.imageCredit && (
+    <p className="mt-2 text-xs text-muted-foreground italic">
+       {article.imageCredit}
+    </p>
+  )}
+</div>
 
         <Badge variant="outline" className={`mb-4 ${categoryColor}`}>
           {article.category}
@@ -245,7 +289,7 @@ export default function ArticlePage() {
           <div className="flex items-center gap-4">
             <Avatar className="h-14 w-14 ring-2 ring-background shadow-md">
               <AvatarImage src={article.author?.profileImageUrl || undefined} />
-              <AvatarFallback className="text-lg font-semibold bg-primary/10 text-primary">
+              <AvatarFallback className="text-lg font-semibold bg-blue-500/10 text-blue-500">
                 {initials}
               </AvatarFallback>
             </Avatar>
@@ -266,16 +310,39 @@ export default function ArticlePage() {
             </div>
           </div>
           
-          <div className="flex items-center gap-2 ml-auto">
-            <Button variant="outline" size="sm" className="gap-2" data-testid="button-bookmark">
-              <Bookmark className="h-4 w-4" />
-              <span className="hidden sm:inline">Sauvegarder</span>
-            </Button>
-            <Button variant="outline" size="sm" className="gap-2" data-testid="button-share">
-              <Share2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Partager</span>
-            </Button>
-          </div>
+          <DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button variant="outline" size="sm" className="gap-2">
+      <Share2 className="h-4 w-4" />
+      <span className="hidden sm:inline">Partager</span>
+    </Button>
+  </DropdownMenuTrigger>
+
+  <DropdownMenuContent align="end">
+    <DropdownMenuItem onClick={shareOnX}>
+      Partager sur X
+    </DropdownMenuItem>
+
+    <DropdownMenuItem onClick={shareOnFacebook}>
+      Partager sur Facebook
+    </DropdownMenuItem>
+
+    <DropdownMenuSeparator />
+
+    <DropdownMenuItem onClick={copyLink}>
+      Copier le lien
+    </DropdownMenuItem>
+
+    <DropdownMenuItem
+      onClick={() => {
+        copyLink();
+        alert("Lien copié — collez-le dans Instagram");
+      }}
+    >
+      Instagram (copier le lien)
+    </DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>
         </div>
 
         <article className="prose prose-lg dark:prose-invert max-w-none mb-16">
@@ -290,7 +357,7 @@ export default function ArticlePage() {
         {relatedArticles.length > 0 && (
           <section className="border-t pt-12">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-1 h-8 bg-primary rounded-full" />
+              <div className="w-1 h-8 bg-blue-500 rounded-full" />
               <h2 className="text-2xl font-bold">Articles similaires</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -304,7 +371,7 @@ export default function ArticlePage() {
 
       <footer className="border-t bg-muted/30 mt-16">
         <div className="max-w-7xl mx-auto px-4 py-8 text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} AlloSportsHub. Tous droits réservés.</p>
+          <p>© {new Date().getFullYear()} Allo Sports. Tous droits réservés.</p>
         </div>
       </footer>
     </div>

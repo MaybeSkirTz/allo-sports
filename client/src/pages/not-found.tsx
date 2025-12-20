@@ -9,11 +9,11 @@ export default function NotFound() {
         <div className="max-w-7xl mx-auto px-4 py-3">
           <Link href="/">
             <div className="flex items-center gap-2 cursor-pointer">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-500/80 flex items-center justify-center shadow-lg">
                 <Trophy className="h-5 w-5 text-white" />
               </div>
               <h1 className="text-xl font-bold tracking-tight">
-                Allo<span className="text-primary">Sports</span>Hub
+                Allo<span className="text-blue-500"> Sports</span>
               </h1>
             </div>
           </Link>
@@ -39,7 +39,7 @@ export default function NotFound() {
       </main>
 
       <footer className="border-t py-6 text-center text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} AlloSportsHub. Tous droits réservés.</p>
+        <p>© {new Date().getFullYear()} Allo Sports. Tous droits réservés.</p>
       </footer>
     </div>
   );

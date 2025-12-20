@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -25,7 +25,9 @@ export const articles = pgTable("articles", {
   content: text("content").notNull(),
   category: varchar("category", { length: 50 }).notNull(),
   imageUrl: text("image_url"),
+  imageCredit: text("image_credit"),
   authorId: varchar("author_id").notNull().references(() => users.id),
+  views: integer("views").notNull().default(0),
   published: boolean("published").default(false),
   featured: boolean("featured").default(false),
   createdAt: timestamp("created_at").defaultNow(),

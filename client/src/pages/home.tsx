@@ -16,6 +16,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { 
+  Carousel, 
+  CarouselContent, 
+  CarouselItem
+} from "@/components/ui/carousel";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/use-auth";
 import type { ArticleWithAuthor } from "@shared/schema";
@@ -38,7 +43,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   Soccer: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
   ATP: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20",
   WTA: "bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20",
-  F1: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
+  F1: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
 };
 
 function formatRelativeTime(date: Date | string | null) {
@@ -100,12 +105,12 @@ function ArticleCard({ article }: { article: ArticleWithAuthor }) {
     .toUpperCase()
     .slice(0, 2) || "AU";
 
-  const categoryColor = CATEGORY_COLORS[article.category] || "bg-primary/10 text-primary border-primary/20";
+  const categoryColor = CATEGORY_COLORS[article.category] || "bg-blue-500/10 text-blue-500 border-blue-500/20";
 
   return (
     <Link href={`/article/${article.id}`}>
       <Card
-        className="overflow-hidden border shadow-sm cursor-pointer group transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+        className="overflow-hidden border shadow-sm cursor-pointer group transition-all duration-300 hover:shadow-lg hover:-translate-y-1 h-full flex flex-col"
         data-testid={`card-article-${article.id}`}
       >
         <div className="aspect-video overflow-hidden relative">
@@ -116,21 +121,21 @@ function ArticleCard({ article }: { article: ArticleWithAuthor }) {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </div>
-        <CardContent className="p-5">
-          <Badge variant="outline" className={`mb-3 font-medium text-xs ${categoryColor}`}>
+        <CardContent className="p-5 flex flex-col flex-1">
+          <Badge variant="outline" className={`mb-3 font-medium text-xs w-fit ${categoryColor}`}>
             {article.category}
           </Badge>
-          <h3 className="font-bold text-lg leading-tight line-clamp-2 mb-3 group-hover:text-primary transition-colors" data-testid={`text-title-${article.id}`}>
+          <h3 className="font-bold text-lg leading-tight line-clamp-2 mb-3 group-hover:text-blue-500 transition-colors" data-testid={`text-title-${article.id}`}>
             {article.title}
           </h3>
-          <p className="text-muted-foreground text-sm line-clamp-2 mb-5">
+          <p className="text-muted-foreground text-sm line-clamp-2 mb-5 flex-1">
             {article.excerpt}
           </p>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 mt-auto">
             <div className="flex items-center gap-3">
               <Avatar className="h-9 w-9 ring-2 ring-background shadow-sm">
                 <AvatarImage src={article.author?.profileImageUrl || undefined} />
-                <AvatarFallback className="text-xs font-medium bg-primary/10 text-primary">
+                <AvatarFallback className="text-xs font-medium bg-blue-500/10 text-blue-500">
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -158,7 +163,7 @@ function HeroArticle({ article }: { article: ArticleWithAuthor }) {
   return (
     <Link href={`/article/${article.id}`}>
       <div
-        className="relative aspect-[21/9] min-h-[400px] lg:min-h-[500px] rounded-2xl overflow-hidden cursor-pointer group"
+        className="relative w-full aspect-[21/9] min-h-[400px] lg:min-h-[500px] rounded-2xl overflow-hidden cursor-pointer group"
         data-testid="hero-article"
       >
         <img
@@ -170,7 +175,7 @@ function HeroArticle({ article }: { article: ArticleWithAuthor }) {
         <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent" />
         
         <div className="absolute top-6 left-6">
-          <Badge className="bg-primary text-primary-foreground font-semibold px-3 py-1.5 text-sm shadow-lg border-0">
+          <Badge className="bg-blue-500 text-blue-500-foreground font-semibold px-3 py-1.5 text-sm shadow-lg border-0">
             <Zap className="h-3.5 w-3.5 mr-1.5" />
             À la une
           </Badge>
@@ -180,10 +185,10 @@ function HeroArticle({ article }: { article: ArticleWithAuthor }) {
           <Badge variant="outline" className="mb-4 bg-white/10 text-white border-white/20 backdrop-blur-sm">
             {article.category}
           </Badge>
-          <h1 className="text-2xl md:text-4xl lg:text-5xl font-extrabold text-white mb-4 line-clamp-3 leading-tight drop-shadow-lg">
+          <h1 className="text-2xl md:text-4xl lg:text-5xl font-extrabold text-white mb-4 line-clamp-3 leading-tight drop-shadow-lg max-w-4xl">
             {article.title}
           </h1>
-          <p className="text-white/80 text-sm md:text-base max-w-3xl line-clamp-2 mb-6">
+          <p className="text-white/80 text-sm md:text-base max-w-3xl line-clamp-2 mb-6 hidden md:block">
             {article.excerpt}
           </p>
           <div className="flex flex-wrap items-center gap-4 text-white/90">
@@ -210,42 +215,12 @@ function HeroArticle({ article }: { article: ArticleWithAuthor }) {
   );
 }
 
-function SecondaryHeroCard({ article }: { article: ArticleWithAuthor }) {
-  const authorName = article.author 
-    ? [article.author.firstName, article.author.lastName].filter(Boolean).join(" ") || "Auteur"
-    : "Auteur";
-
-  return (
-    <Link href={`/article/${article.id}`}>
-      <div className="relative h-full min-h-[200px] rounded-xl overflow-hidden cursor-pointer group">
-        <img
-          src={article.imageUrl || "https://images.unsplash.com/photo-1461896836934-gy5rba-sport?w=600&h=400&fit=crop"}
-          alt={article.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-4">
-          <Badge variant="outline" className="mb-2 bg-white/10 text-white border-white/20 backdrop-blur-sm text-xs">
-            {article.category}
-          </Badge>
-          <h3 className="font-bold text-white text-base line-clamp-2 leading-snug mb-2">
-            {article.title}
-          </h3>
-          <div className="flex items-center gap-2 text-white/80 text-xs">
-            <span>{authorName}</span>
-            <span className="w-1 h-1 rounded-full bg-white/60" />
-            <span>{formatRelativeTime(article.createdAt)}</span>
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
 export default function Home() {
   const { user, isAuthenticated, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Tous");
+  const [showAll, setShowAll] = useState(false);
+  const [carouselApi, setCarouselApi] = useState<any>(null);
 
   const { data: articles, isLoading, error } = useQuery<ArticleWithAuthor[]>({
     queryKey: ["/api/articles"],
@@ -275,9 +250,30 @@ export default function Home() {
     return article.category === selectedCategory;
   });
 
-  const featuredArticle = filteredArticles.find((a) => a.featured) || filteredArticles[0];
-  const secondaryArticles = filteredArticles.slice(1, 3);
-  const regularArticles = filteredArticles.slice(featuredArticle ? 3 : 0);
+  const sortedArticles = [...filteredArticles].sort(
+    (a, b) =>
+      new Date(b.createdAt ?? 0).getTime() -
+      new Date(a.createdAt ?? 0).getTime()
+  );
+
+  // --- LOGIQUE CORRIGÉE DE SÉPARATION ---
+  
+  // 1. Trouver les articles qui sont STRICTEMENT marqués comme "featured" (à la une)
+  let featuredArticles = sortedArticles.filter((a) => a.featured === true);
+  
+  // 2. Trouver les articles normaux (qui ne sont PAS featured)
+  let regularArticles = sortedArticles.filter((a) => !a.featured);
+
+  // Fallback : S'il n'y a AUCUN article "à la une", on prend le tout dernier article publié
+  // pour le mettre en haut, sinon le site fait vide.
+  if (featuredArticles.length === 0 && sortedArticles.length > 0 && selectedCategory === "Tous") {
+    featuredArticles = [sortedArticles[0]];
+    regularArticles = sortedArticles.slice(1);
+  }
+
+  const articlesToDisplay = showAll
+  ? sortedArticles
+  : regularArticles;
 
   return (
     <div className="min-h-screen bg-background">
@@ -286,12 +282,12 @@ export default function Home() {
           <div className="flex items-center justify-between gap-4">
             <Link href="/">
               <div className="flex items-center gap-2 cursor-pointer" data-testid="link-home">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
-                  <Trophy className="h-5 w-5 text-white" />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg">
+                  <img src="/4.png"/>
                 </div>
                 <div>
                   <h1 className="text-xl font-bold tracking-tight">
-                    Allo<span className="text-primary">Sports</span>Hub
+                    Allo<span className="text-blue-500"> Sports</span>
                   </h1>
                 </div>
               </div>
@@ -304,38 +300,59 @@ export default function Home() {
                 placeholder="Rechercher un article, une équipe, un joueur..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-11 pr-4 h-11 bg-muted/50 border-0 rounded-xl focus-visible:ring-2 focus-visible:ring-primary/20"
+                className="pl-11 pr-4 h-11 bg-muted/50 border-0 rounded-xl focus-visible:ring-2 focus-visible:ring-blue-500/20"
                 data-testid="input-search"
               />
             </div>
 
             <div className="flex items-center gap-2">
               <ThemeToggle />
-              {isAuthenticated ? (
-                <>
-                  {(user?.role === "AUTHOR" || user?.role === "ADMIN") && (
-                    <Link href="/dashboard">
-                      <Button variant="outline" size="sm" className="hidden sm:flex" data-testid="button-dashboard">
-                        Dashboard
-                      </Button>
-                    </Link>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={logout}
-                    data-testid="button-logout"
-                  >
-                    Déconnexion
-                  </Button>
-                </>
-              ) : (
-                <Link href="/login">
-                  <Button size="sm" data-testid="button-login">
-                    Connexion
-                  </Button>
-                </Link>
-              )}
+{isAuthenticated ? (
+  <>
+    {(user?.role === "AUTHOR" || user?.role === "ADMIN") && (
+      <Link href="/dashboard">
+        <Button
+          variant="outline"
+          size="sm"
+          className="hidden sm:flex"
+          data-testid="button-dashboard"
+        >
+          Dashboard
+        </Button>
+      </Link>
+    )}
+
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={logout}
+      data-testid="button-logout"
+    >
+      Déconnexion
+    </Button>
+  </>
+) : (
+  <div className="flex items-center gap-2">
+    <Link href="/login">
+      <Button
+        variant="ghost"
+        size="sm"
+        data-testid="button-login"
+      >
+        Connexion
+      </Button>
+    </Link>
+
+    <Link href="/register">
+      <Button
+        size="sm"
+        data-testid="button-register"
+      >
+        Inscription
+      </Button>
+    </Link>
+  </div>
+)}
             </div>
           </div>
 
@@ -379,7 +396,7 @@ export default function Home() {
         {searchQuery && (
           <div className="mb-8">
             <h2 className="text-2xl font-bold flex items-center gap-2">
-              <Search className="h-6 w-6 text-primary" />
+              <Search className="h-6 w-6 text-blue-500" />
               Résultats pour "{searchQuery}"
             </h2>
             {isSearching && <p className="text-muted-foreground mt-2">Recherche en cours...</p>}
@@ -389,33 +406,89 @@ export default function Home() {
           </div>
         )}
 
-        {!searchQuery && !isLoading && filteredArticles.length > 0 && featuredArticle && (
-          <section className="mb-12">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2">
-                <HeroArticle article={featuredArticle} />
-              </div>
-              {secondaryArticles.length > 0 && (
-                <div className="grid grid-rows-2 gap-4">
-                  {secondaryArticles.map((article) => (
-                    <SecondaryHeroCard key={article.id} article={article} />
-                  ))}
-                </div>
-              )}
-            </div>
+        {/* SECTION HERO (À LA UNE) - CAROUSEL UNIQUEMENT */}
+        {!searchQuery && !isLoading && featuredArticles.length > 0 && (
+<section className="mb-12 relative">
+  <Carousel
+    opts={{ loop: true }}
+    setApi={setCarouselApi}
+    className="w-full"
+  >
+    <CarouselContent>
+      {featuredArticles.map((article) => (
+        <CarouselItem key={article.id}>
+          <HeroArticle article={article} />
+        </CarouselItem>
+      ))}
+    </CarouselContent>
+  </Carousel>
+  {featuredArticles.length > 1 && (
+  <>
+    <button
+      onClick={() => carouselApi?.scrollPrev()}
+      className="
+        absolute
+        left-1
+        top-1/2
+        -translate-y-1/2
+        z-50
+        h-12 w-12
+        rounded-full
+        bg-black/50
+        text-white
+        hover:bg-black/70
+        backdrop-blur
+        shadow-xl
+        hidden md:flex
+        items-center
+        justify-center
+      "
+    >
+      ‹
+    </button>
+
+    <button
+      onClick={() => carouselApi?.scrollNext()}
+      className="
+        absolute
+        right-1
+        top-1/2
+        -translate-y-1/2
+        z-50
+        h-12 w-12
+        rounded-full
+        bg-black/50
+        text-white
+        hover:bg-black/70
+        backdrop-blur
+        shadow-xl
+        hidden md:flex
+        items-center
+        justify-center
+      "
+    >
+      ›
+    </button>
+  </>
+)}
           </section>
         )}
 
+        {/* SECTION DERNIERS ARTICLES (Le reste) */}
         {!searchQuery && (
           <section className="mb-8">
             <div className="flex items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-1 h-8 bg-primary rounded-full" />
+                <div className="w-1 h-8 bg-blue-500 rounded-full" />
                 <h2 className="text-2xl font-bold">
                   {selectedCategory === "Tous" ? "Derniers Articles" : selectedCategory}
                 </h2>
               </div>
-              <Button variant="ghost" className="gap-1 text-muted-foreground" data-testid="button-view-all">
+              <Button
+  variant="ghost"
+  className="gap-1 text-muted-foreground"
+  onClick={() => setShowAll(true)}
+>
                 Voir tout <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -436,13 +509,13 @@ export default function Home() {
 
             {!isLoading && !error && regularArticles.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {regularArticles.map((article) => (
+                {articlesToDisplay.map((article) => (
                   <ArticleCard key={article.id} article={article} />
                 ))}
               </div>
             )}
 
-            {!isLoading && !error && filteredArticles.length === 0 && (
+            {!isLoading && !error && regularArticles.length === 0 && featuredArticles.length === 0 && (
               <div className="text-center py-16">
                 <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
                   <Trophy className="h-10 w-10 text-muted-foreground" />
@@ -458,6 +531,7 @@ export default function Home() {
           </section>
         )}
 
+        {/* AFFICHAGE RECHERCHE */}
         {searchQuery && !isSearching && filteredArticles.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredArticles.map((article) => (
@@ -472,10 +546,10 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
-                  <Trophy className="h-5 w-5 text-white" />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg">
+                  <img src="/4.png"/>
                 </div>
-                <span className="text-xl font-bold">AlloSportsHub</span>
+                <span className="text-xl font-bold">Allo Sports</span>
               </div>
               <p className="text-muted-foreground text-sm leading-relaxed">
                 Votre source d'actualité sportive préférée au Québec. Suivez toutes les ligues majeures avec passion.
@@ -484,7 +558,7 @@ export default function Home() {
             
             <div>
               <h4 className="font-semibold mb-4 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
+                <TrendingUp className="h-4 w-4 text-blue-500" />
                 Catégories
               </h4>
               <ul className="space-y-3 text-sm text-muted-foreground">
@@ -510,35 +584,17 @@ export default function Home() {
                   </Link>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-foreground transition-colors">Facebook</a>
+                  <a href="https://www.facebook.com/profile.php?id=61585003447679" className="hover:text-foreground transition-colors">Facebook</a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-foreground transition-colors">Twitter</a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-foreground transition-colors">Instagram</a>
+                  <a href="https://x.com/Allosportss" className="hover:text-foreground transition-colors">X</a>
                 </li>
               </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-4 flex items-center gap-2">
-                <Users className="h-4 w-4 text-primary" />
-                Devenir Auteur
-              </h4>
-              <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-                Rejoignez notre équipe de rédacteurs passionnés de sport et partagez votre expertise.
-              </p>
-              <Link href="/register">
-                <Button variant="outline" size="sm" className="w-full" data-testid="button-become-author">
-                  S'inscrire
-                </Button>
-              </Link>
             </div>
           </div>
           
           <div className="border-t mt-12 pt-8 text-center text-sm text-muted-foreground">
-            <p>© {new Date().getFullYear()} AlloSportsHub. Tous droits réservés.</p>
+            <p>© {new Date().getFullYear()} Allo Sports. Tous droits réservés.</p>
           </div>
         </div>
       </footer>

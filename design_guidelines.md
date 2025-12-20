@@ -156,3 +156,5 @@
 - Maintain consistent spacing rhythm across all pages
 
 This design creates a premium, energetic sports news experience that balances bold visual impact with excellent readability and user experience.
+
+Set-Alias psql "C:\Program Files\PostgreSQL\16\bin\psql.exe"

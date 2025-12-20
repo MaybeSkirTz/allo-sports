@@ -81,7 +81,7 @@ function ArticleRow({ article, onDelete, onTogglePublish }: {
   onDelete: (id: string) => void;
   onTogglePublish: (id: string, published: boolean) => void;
 }) {
-  const categoryColor = CATEGORY_COLORS[article.category] || "bg-primary/10 text-primary";
+  const categoryColor = CATEGORY_COLORS[article.category] || "bg-blue-500/10 text-blue-500";
 
   return (
     <div className="flex items-center gap-4 p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors">
@@ -108,15 +108,21 @@ function ArticleRow({ article, onDelete, onTogglePublish }: {
             <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 flex-shrink-0" />
           )}
         </div>
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <Badge variant="secondary" className={`text-xs ${categoryColor}`}>
-            {article.category}
-          </Badge>
-          <span className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            {formatDate(article.createdAt)}
-          </span>
-        </div>
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+  <Badge variant="secondary" className={`text-xs ${categoryColor}`}>
+    {article.category}
+  </Badge>
+
+  <span className="flex items-center gap-1">
+    <Clock className="h-3 w-3" />
+    {formatDate(article.createdAt)}
+  </span>
+
+  <span className="flex items-center gap-1">
+    <Eye className="h-3 w-3" />
+    {article.views ?? 0}
+  </span>
+</div>
       </div>
       
       <div className="flex items-center gap-3">
@@ -263,11 +269,11 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <Link href="/">
               <div className="flex items-center gap-2 cursor-pointer">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
-                  <Trophy className="h-5 w-5 text-white" />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg">
+                  <img src="/4.png"/>
                 </div>
                 <h1 className="text-xl font-bold tracking-tight hidden sm:block">
-                  Allo<span className="text-primary">Sports</span>Hub
+                  Allo<span className="text-blue-500"> Sports</span>
                 </h1>
               </div>
             </Link>
@@ -310,8 +316,8 @@ export default function Dashboard() {
           <Card className="border-0 shadow-md">
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <FileText className="h-6 w-6 text-primary" />
+                <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <FileText className="h-6 w-6 text-blue-500" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{articles?.length || 0}</p>

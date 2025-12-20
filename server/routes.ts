@@ -102,7 +102,7 @@ export async function registerRoutes(
         firstName: firstName || null,
         lastName: lastName || null,
         profileImageUrl: null,
-        role: "AUTHOR", // New users are authors by default
+        role: "USER", // New users are authors by default
       });
 
       // Generate JWT
@@ -221,6 +221,7 @@ export async function registerRoutes(
       if (!article) {
         return res.status(404).json({ message: "Article non trouvé" });
       }
+      await storage.incrementArticleViews(req.params.id);
       res.json(article);
     } catch (error: any) {
       res.status(500).json({ message: error.message });

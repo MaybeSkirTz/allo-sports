@@ -70,11 +70,11 @@ export default function Register() {
           <div className="flex items-center justify-between">
             <Link href="/">
               <div className="flex items-center gap-2 cursor-pointer">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
-                  <Trophy className="h-5 w-5 text-white" />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg">
+                  <img src="/4.png"/>
                 </div>
                 <h1 className="text-xl font-bold tracking-tight">
-                  Allo<span className="text-primary">Sports</span>Hub
+                  Allo<span className="text-blue-500"> Sports</span>
                 </h1>
               </div>
             </Link>
@@ -86,7 +86,7 @@ export default function Register() {
       <main className="flex-1 flex items-center justify-center px-4 py-12">
         <Card className="w-full max-w-md shadow-xl border-0">
           <CardHeader className="text-center pb-2">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-500/80 flex items-center justify-center shadow-lg">
               <Trophy className="h-8 w-8 text-white" />
             </div>
             <CardTitle className="text-2xl font-bold">Inscription</CardTitle>
@@ -107,6 +107,7 @@ export default function Register() {
                         <FormControl>
                           <Input 
                             placeholder="Jean" 
+                            className="focus-visible:ring-blue-500"
                             {...field}
                             data-testid="input-firstname"
                           />
@@ -124,6 +125,7 @@ export default function Register() {
                         <FormControl>
                           <Input 
                             placeholder="Dupont" 
+                            className="focus-visible:ring-blue-500"
                             {...field}
                             data-testid="input-lastname"
                           />
@@ -143,6 +145,7 @@ export default function Register() {
                       <FormControl>
                         <Input 
                           placeholder="jean_dupont" 
+                          className="focus-visible:ring-blue-500"
                           {...field}
                           data-testid="input-username"
                         />
@@ -162,6 +165,7 @@ export default function Register() {
                         <Input 
                           type="email"
                           placeholder="jean@exemple.com" 
+                          className="focus-visible:ring-blue-500"
                           {...field}
                           data-testid="input-email"
                         />
@@ -182,6 +186,7 @@ export default function Register() {
                           <Input
                             type={showPassword ? "text" : "password"}
                             placeholder="Minimum 6 caractères"
+                            className="focus-visible:ring-blue-500"
                             {...field}
                             data-testid="input-password"
                           />
@@ -189,7 +194,7 @@ export default function Register() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="absolute right-0 top-0 h-full"
+                            className="absolute right-0 top-0 h-full focus-visible:ring-blue-500"
                             onClick={() => setShowPassword(!showPassword)}
                           >
                             {showPassword ? (
@@ -225,7 +230,7 @@ export default function Register() {
 
             <div className="mt-6 text-center text-sm">
               <span className="text-muted-foreground">Déjà un compte? </span>
-              <Link href="/login" className="text-primary font-medium hover:underline">
+              <Link href="/login" className="text-blue-500 font-medium hover:underline">
                 Se connecter
               </Link>
             </div>
@@ -234,7 +239,7 @@ export default function Register() {
       </main>
 
       <footer className="border-t py-6 text-center text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} AlloSportsHub. Tous droits réservés.</p>
+        <p>© {new Date().getFullYear()} Allo Sports. Tous droits réservés.</p>
       </footer>
     </div>
   );
