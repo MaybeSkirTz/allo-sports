@@ -148,9 +148,12 @@ async incrementArticleViews(id: string): Promise<void> {
 },
 
   async createArticle(data: InsertArticle): Promise<Article> {
-    const [article] = await db.insert(articles).values(data).returning();
-    return article;
-  },
+  const [article] = await db.insert(articles).values({
+    ...data,
+    slug: data.slug!, // <- assertion non-null
+  }).returning();
+  return article;
+},
 
   async updateArticle(id: string, data: UpdateArticle): Promise<Article | null> {
     const [article] = await db
