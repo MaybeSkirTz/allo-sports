@@ -1,6 +1,6 @@
 import { db } from "./db.js";
 import { users, articles } from "../shared/schema.js";
-import { eq, and, ilike, desc, sql } from "drizzle-orm";
+import { eq, and, ilike, desc, sql, lte } from "drizzle-orm";
 import type {
   User,
   InsertUser,
@@ -42,6 +42,8 @@ export const storage = {
   /* ================= ARTICLES ================= */
 
   async getPublishedArticles(): Promise<ArticleWithAuthor[]> {
+  const now = new Date(); // L'heure précise du serveur au moment de la requête
+
   const rows = await db
     .select({
       article: articles,
@@ -52,8 +54,13 @@ export const storage = {
     })
     .from(articles)
     .leftJoin(users, eq(users.id, articles.authorId))
-    .where(eq(articles.published, true))
-    .orderBy(desc(articles.createdAt));
+    .where(
+      and(
+        eq(articles.published, true),        // L'article doit être coché comme publié
+        lte(articles.scheduledAt, now)      // ET la date prévue doit être <= à maintenant
+      )
+    )
+    .orderBy(desc(articles.scheduledAt));   // On trie par date de publication prévue
 
   return rows.map((row) => ({
     ...row.article,

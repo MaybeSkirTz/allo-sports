@@ -332,14 +332,6 @@ export default function Home() {
                       </Button>
                     </Link>
                   )}
-
-                  {(user?.role === "ADMIN") && (
-                    <Link href="/admin">
-    <Button variant="outline" size="sm" className="hidden sm:flex">
-      Panel Admin
-    </Button>
-  </Link>
-)}
                   <Button
                     variant="ghost"
                     size="sm"
