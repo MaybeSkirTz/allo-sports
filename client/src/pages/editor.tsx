@@ -121,6 +121,7 @@ const createMutation = useMutation({
         ...data,
         slug: slugify(data.title),
         imageUrl: data.imageUrl || null,
+        scheduledAt: data.scheduledAt ? new Date(data.scheduledAt).toISOString() : undefined,
       };
       const res = await apiRequest("POST", "/api/articles", payload);
       return res.json();
@@ -147,6 +148,7 @@ const createMutation = useMutation({
         ...data,
         slug: slugify(data.title),
         imageUrl: data.imageUrl || null,
+        scheduledAt: data.scheduledAt ? new Date(data.scheduledAt).toISOString() : undefined,
       };
       const res = await apiRequest("PATCH", `/api/articles/${articleId}`, payload);
       return res.json();
