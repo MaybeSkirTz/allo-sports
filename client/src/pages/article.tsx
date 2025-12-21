@@ -152,8 +152,8 @@ export default function ArticlePage() {
             <div className="flex items-center justify-between gap-4">
               <Link href="/">
                 <div className="flex items-center gap-2 cursor-pointer">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-500/80 flex items-center justify-center shadow-lg">
-                    <Trophy className="h-5 w-5 text-white" />
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg">
+                    <img src="/4.png"/>
                   </div>
                   <h1 className="text-xl font-bold tracking-tight">
                     Allo<span className="text-blue-500"> Sports</span>
@@ -168,7 +168,7 @@ export default function ArticlePage() {
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center max-w-md mx-auto px-4">
             <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
-              <Trophy className="h-10 w-10 text-muted-foreground" />
+              <img src="/4.png"/>
             </div>
             <h1 className="text-2xl font-bold mb-4">Article non trouvé</h1>
             <p className="text-muted-foreground mb-8">
