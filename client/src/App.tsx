@@ -12,6 +12,7 @@ import Editor from "@/pages/editor";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import AdminPage from "@/pages/admin";
 
 function Router() {
   return (
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/article/:id" component={ArticlePage} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/admin" component={AdminPage} />
 
       <Route path="/dashboard">
         <RequireAuthor>
