@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, articles } from "@shared/schema";
+import { users, articles } from "../shared/schema.js";
 import { eq, and, ilike, desc, sql } from "drizzle-orm";
 import type {
   User,
@@ -8,7 +8,7 @@ import type {
   InsertArticle,
   UpdateArticle,
   ArticleWithAuthor,
-} from "@shared/schema";
+} from "../shared/schema.js";
 
 export const storage = {
   /* ================= USERS ================= */
