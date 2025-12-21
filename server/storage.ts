@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { db } from "./db.js";
 import { users, articles } from "../shared/schema.js";
 import { eq, and, ilike, desc, sql } from "drizzle-orm";
 import type {
