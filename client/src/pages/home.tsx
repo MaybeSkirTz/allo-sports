@@ -264,13 +264,6 @@ export default function Home() {
   // 2. Trouver les articles normaux (qui ne sont PAS featured)
   let regularArticles = sortedArticles.filter((a) => !a.featured);
 
-  // Fallback : S'il n'y a AUCUN article "à la une", on prend le tout dernier article publié
-  // pour le mettre en haut, sinon le site fait vide.
-  if (featuredArticles.length === 0 && sortedArticles.length > 0 && selectedCategory === "Tous") {
-    featuredArticles = [sortedArticles[0]];
-    regularArticles = sortedArticles.slice(1);
-  }
-
   const articlesToDisplay = showAll
   ? sortedArticles
   : regularArticles;
