@@ -150,7 +150,7 @@ async incrementArticleViews(id: string): Promise<void> {
   async createArticle(data: InsertArticle): Promise<Article> {
   const [article] = await db.insert(articles).values({
     ...data,
-    slug: data.slug!, // <- assertion non-null
+    slug: data.slug!,
   }).returning();
   return article;
 },

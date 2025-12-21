@@ -48,9 +48,14 @@ const CATEGORY_COLORS: Record<string, string> = {
   NBA: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
   NFL: "bg-green-500/10 text-green-600 dark:text-green-400",
   Soccer: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  ATP: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
-  WTA: "bg-pink-500/10 text-pink-600 dark:text-pink-400",
-  F1: "bg-red-500/10 text-red-600 dark:text-red-400",
+  MLB: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
+};
+
+const openTwitterShare = (title: string, slug: string) => {
+  const articleUrl = `${window.location.origin}/article/${slug}`;
+  const tweetText = `🚀 Nouvel article : ${title}\n\nÀ lire ici 👇\n`;
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(articleUrl)}`;
+  window.open(twitterUrl, '_blank', 'width=550,height=420');
 };
 
 function formatDate(date: Date | string | null) {
@@ -79,7 +84,7 @@ function ArticleRowSkeleton() {
 function ArticleRow({ article, onDelete, onTogglePublish }: { 
   article: ArticleWithAuthor; 
   onDelete: (id: string) => void;
-  onTogglePublish: (id: string, published: boolean) => void;
+  onTogglePublish: (id: string, published: boolean, title: string, slug: string) => void; 
 }) {
   const categoryColor = CATEGORY_COLORS[article.category] || "bg-blue-500/10 text-blue-500";
 
@@ -153,21 +158,21 @@ function ArticleRow({ article, onDelete, onTogglePublish }: {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={() => onTogglePublish(article.id, !article.published)}
-              className="flex items-center gap-2"
-            >
-              {article.published ? (
-                <>
-                  <EyeOff className="h-4 w-4" />
-                  Dépublier
-                </>
-              ) : (
-                <>
-                  <Eye className="h-4 w-4" />
-                  Publier
-                </>
-              )}
-            </DropdownMenuItem>
+  onClick={() => onTogglePublish(article.id, !article.published, article.title, article.slug)}
+  className="flex items-center gap-2"
+>
+  {article.published ? (
+    <>
+      <EyeOff className="h-4 w-4" />
+      Dépublier
+    </>
+  ) : (
+    <>
+      <Eye className="h-4 w-4" />
+      Publier
+    </>
+  )}
+</DropdownMenuItem>
             <DropdownMenuSeparator />
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -233,19 +238,24 @@ export default function Dashboard() {
     },
   });
 
-  const togglePublishMutation = useMutation({
-    mutationFn: async ({ id, published }: { id: string; published: boolean }) => {
+ const togglePublishMutation = useMutation({
+    mutationFn: async ({ id, published, title, slug }: { id: string; published: boolean; title: string; slug: string }) => {
       await apiRequest("PATCH", `/api/articles/${id}`, { published });
+      return { id, published, title, slug };
     },
-    onSuccess: (_, { published }) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/articles/my"] });
       queryClient.invalidateQueries({ queryKey: ["/api/articles"] });
+      
       toast({
-        title: published ? "Article publié" : "Article dépublié",
-        description: published 
+        title: variables.published ? "Article publié" : "Article dépublié",
+        description: variables.published 
           ? "L'article est maintenant visible au public."
           : "L'article est maintenant en brouillon.",
       });
+      if (variables.published) {
+        openTwitterShare(variables.title, variables.slug);
+      }
     },
     onError: () => {
       toast({
@@ -372,11 +382,13 @@ export default function Dashboard() {
               <div>
                 {articles.map((article) => (
                   <ArticleRow 
-                    key={article.id} 
-                    article={article}
-                    onDelete={(id) => deleteMutation.mutate(id)}
-                    onTogglePublish={(id, published) => togglePublishMutation.mutate({ id, published })}
-                  />
+    key={article.id} 
+    article={article}
+    onDelete={(id) => deleteMutation.mutate(id)}
+    onTogglePublish={(id, published, title, slug) => 
+      togglePublishMutation.mutate({ id, published, title, slug })
+    }
+  />
                 ))}
               </div>
             ) : (

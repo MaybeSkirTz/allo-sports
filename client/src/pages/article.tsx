@@ -30,9 +30,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   NBA: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
   NFL: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20",
   Soccer: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-  ATP: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20",
-  WTA: "bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20",
-  F1: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+  MLB: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20",
 };
 
 function formatDate(date: Date | string | null) {

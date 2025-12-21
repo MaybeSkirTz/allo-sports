@@ -35,7 +35,7 @@ import { insertArticleSchema } from "@shared/schema";
 import type { ArticleWithAuthor } from "@shared/schema";
 import { z } from "zod";
 
-const CATEGORIES = ["NHL", "NBA", "NFL", "Soccer", "ATP", "WTA", "F1"];
+const CATEGORIES = ["NHL", "NBA", "NFL", "Soccer", "MLB"];
 
 const editorSchema = z.object({
   title: z.string().min(5, "Le titre doit contenir au moins 5 caractères"),
@@ -118,18 +118,17 @@ const createMutation = useMutation({
     mutationFn: async (data: EditorForm) => {
       const payload = {
         ...data,
-        slug: slugify(data.title), // Génération du slug
+        slug: slugify(data.title),
         imageUrl: data.imageUrl || null,
       };
       const res = await apiRequest("POST", "/api/articles", payload);
-      return res.json(); // On retourne le JSON pour récupérer le slug créé
+      return res.json();
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/articles"] });
       queryClient.invalidateQueries({ queryKey: ["/api/articles/my"] });
       toast({ title: "Article créé", description: "Votre article a été créé avec succès." });
 
-      // PARTAGE X : Si publié est coché
       if (variables.published) {
         openTwitterShare(variables.title, data.slug);
       }
@@ -145,7 +144,7 @@ const createMutation = useMutation({
     mutationFn: async (data: EditorForm) => {
       const payload = {
         ...data,
-        slug: slugify(data.title), // Mise à jour du slug si le titre change
+        slug: slugify(data.title),
         imageUrl: data.imageUrl || null,
       };
       const res = await apiRequest("PATCH", `/api/articles/${articleId}`, payload);
@@ -157,7 +156,6 @@ const createMutation = useMutation({
       queryClient.invalidateQueries({ queryKey: ["/api/articles", articleId] });
       toast({ title: "Article modifié", description: "Vos modifications ont été enregistrées." });
 
-      // PARTAGE X : Si publié est coché
       if (variables.published) {
         openTwitterShare(variables.title, data.slug);
       }

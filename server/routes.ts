@@ -8,7 +8,6 @@ import jwt from "jsonwebtoken";
 const JWT_SECRET = process.env.SESSION_SECRET || "fallback-secret-key-change-in-production";
 const SALT_ROUNDS = 10;
 
-// Extend Request to include user
 declare global {
   namespace Express {
     interface Request {
@@ -31,7 +30,6 @@ function slugify(text: string): string {
     .substring(0, 150);
 }
 
-// Auth middleware
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   const token = req.cookies?.token;
   
@@ -102,7 +100,7 @@ export async function registerRoutes(
         firstName: firstName || null,
         lastName: lastName || null,
         profileImageUrl: null,
-        role: "USER", // New users are authors by default
+        role: "USER",
       });
 
       // Generate JWT
