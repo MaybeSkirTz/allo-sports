@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage.js";
-import { insertArticleSchema, updateArticleSchema, loginSchema, registerSchema } from "@shared/schema.js";
+import { insertArticleSchema, updateArticleSchema, loginSchema, registerSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
