@@ -30,9 +30,9 @@ export const articles = pgTable("articles", {
   views: integer("views").notNull().default(0),
   published: boolean("published").default(false),
   featured: boolean("featured").default(false),
-  scheduledAt: timestamp("scheduled_at").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  scheduledAt: timestamp("scheduled_at").defaultNow().notNull(),
 });
 
 // Relations

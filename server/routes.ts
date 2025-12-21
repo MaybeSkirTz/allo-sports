@@ -182,14 +182,21 @@ export async function registerRoutes(
   // PUBLIC ARTICLE ROUTES
   // -------------------------
 
-  app.get("/api/articles", async (_req, res) => {
-    try {
-      const articles = await storage.getPublishedArticles();
-      res.json(articles);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
+  app.get("/api/articles", async (req, res) => {
+  try {
+    const allArticles = await storage.getPublishedArticles();
+    const now = new Date();
+
+    const filtered = allArticles.filter(article => {
+      const publishDate = new Date(article.scheduledAt || article.createdAt);
+      return publishDate <= now;
+    });
+
+    res.json(filtered);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
   app.get("/api/articles/search", async (req, res) => {
     try {
@@ -231,25 +238,26 @@ export async function registerRoutes(
   // -------------------------
 
   app.post("/api/articles", requireAuth, requireRole("AUTHOR", "ADMIN"), async (req, res) => {
-    try {
-      const parseResult = insertArticleSchema.safeParse({
-        ...req.body,
-        authorId: req.user!.id,
-      });
+  try {
+    const parseResult = insertArticleSchema.safeParse({
+      ...req.body,
+      authorId: req.user!.id,
+    });
 
-      if (!parseResult.success) {
-        return res.status(400).json({ message: "Données invalides", errors: parseResult.error.errors });
-      }
-
-      const article = await storage.createArticle({
-        ...parseResult.data,
-        slug: slugify(parseResult.data.title),
-      });
-      res.status(201).json(article);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
+    if (!parseResult.success) {
+      return res.status(400).json({ message: "Données invalides", errors: parseResult.error.errors });
     }
-  });
+
+    const article = await storage.createArticle({
+      ...parseResult.data,
+      slug: slugify(parseResult.data.title),
+      scheduledAt: parseResult.data.scheduledAt ? new Date(parseResult.data.scheduledAt) : new Date(),
+    });
+    res.status(201).json(article);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
   app.patch("/api/articles/:id", requireAuth, requireRole("AUTHOR", "ADMIN"), async (req, res) => {
     try {

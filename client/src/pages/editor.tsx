@@ -46,6 +46,7 @@ const editorSchema = z.object({
   imageCredit: z.string().optional(),
   published: z.boolean().default(false),
   featured: z.boolean().default(false),
+  scheduledAt: z.string().optional(),
 });
 
 const slugify = (str: string) =>
@@ -449,6 +450,34 @@ const createMutation = useMutation({
     </FormItem>
   )}
 />
+<Card className="border-0 shadow-lg mb-6">
+  <CardHeader>
+    <CardTitle className="text-sm">Planification</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <FormField
+      control={form.control}
+      name="scheduledAt"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Date et heure de publication</FormLabel>
+          <FormControl>
+            <Input
+              type="datetime-local"
+              className="focus-visible:ring-blue-500"
+              {...field}
+              value={field.value ? field.value.substring(0, 16) : new Date().toISOString().substring(0, 16)}
+            />
+          </FormControl>
+          <p className="text-[10px] text-muted-foreground mt-2">
+            L'article ne sera visible que sur le site qu'à partir de cette date.
+          </p>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  </CardContent>
+</Card>
                 <Button 
                   type="submit" 
                   className="w-full gap-2 shadow-lg"
