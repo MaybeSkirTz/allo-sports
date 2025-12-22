@@ -445,71 +445,48 @@ export default function Home() {
           </section>
         )}
 
-        {/* SECTION GRILLE INFINIE */}
-        {!searchQuery && (
-          <section className="mb-8">
-            <div className="flex items-center justify-between gap-4 mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-1 h-8 bg-blue-500 rounded-full" />
-                <h2 className="text-2xl font-bold">
-                  {selectedCategory === "Tous" ? "Derniers Articles" : selectedCategory}
-                </h2>
-              </div>
-            </div>
+{/* SECTION GRILLE INFINIE */}
+{!searchQuery && (
+  <section className="mb-8">
+    <div className="flex items-center justify-between gap-4 mb-6">
+      {/* ... Titre ... */}
+    </div>
 
-            {isLoading && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[...Array(6)].map((_, i) => (
-                  <ArticleCardSkeleton key={i} />
-                ))}
-              </div>
-            )}
+    {/* ... Loading et Error ... */}
 
-            {error && (
-              <div className="text-center py-12">
-                <p className="text-destructive">Erreur lors du chargement des articles</p>
-              </div>
-            )}
+    {!isLoading && !error && (
+      <>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* MODIFICATION ICI : On utilise sortedArticles au lieu de regularArticles */}
+          {sortedArticles.map((article) => (
+            <ArticleCard key={article.id} article={article} />
+          ))}
+        </div>
 
-            {!isLoading && !error && (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {regularArticles.map((article) => (
-                    <ArticleCard key={article.id} article={article} />
-                  ))}
-                </div>
-
-                {regularArticles.length === 0 && featuredArticles.length === 0 && (
-                  <div className="text-center py-16">
-                    <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
-                      <Trophy className="h-10 w-10 text-muted-foreground" />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-2">Aucun article disponible</h3>
-                    <p className="text-muted-foreground max-w-md mx-auto">
-                      {selectedCategory !== "Tous" 
-                        ? `Aucun article dans la catégorie ${selectedCategory} pour le moment.`
-                        : "Les articles arrivent bientôt. Restez connecté!"}
-                    </p>
-                  </div>
-                )}
-
-                {/* DÉTECTEUR DE SCROLL POUR CHARGER PLUS */}
-                <div ref={ref} className="h-32 flex flex-col items-center justify-center mt-8 border-t border-dashed">
-                  {isFetchingNextPage ? (
-                    <div className="flex flex-col items-center gap-2 text-blue-500">
-                      <div className="h-6 w-6 border-2 border-blue-500 border-t-transparent animate-spin rounded-full" />
-                      <span className="text-sm font-medium">Chargement de la suite...</span>
-                    </div>
-                  ) : hasNextPage ? (
-                    <p className="text-muted-foreground text-xs uppercase tracking-widest">Faites défiler pour charger plus d'articles</p>
-                  ) : regularArticles.length > 0 ? (
-                    <p className="text-muted-foreground text-sm font-medium italic">Vous avez atteint la fin de la liste !</p>
-                  ) : null}
-                </div>
-              </>
-            )}
-          </section>
+        {/* MODIFICATION ICI AUSSI : On vérifie sortedArticles */}
+        {sortedArticles.length === 0 && (
+          <div className="text-center py-16">
+             {/* ... contenu vide ... */}
+          </div>
         )}
+
+        {/* DÉTECTEUR DE SCROLL POUR CHARGER PLUS */}
+        <div ref={ref} className="h-32 flex flex-col items-center justify-center mt-8 border-t border-dashed">
+          {isFetchingNextPage ? (
+            <div className="flex flex-col items-center gap-2 text-blue-500">
+              <div className="h-6 w-6 border-2 border-blue-500 border-t-transparent animate-spin rounded-full" />
+              <span className="text-sm font-medium">Chargement de la suite...</span>
+            </div>
+          ) : hasNextPage ? (
+            <p className="text-muted-foreground text-xs uppercase tracking-widest">Faites défiler pour charger plus d'articles</p>
+          ) : sortedArticles.length > 0 ? (
+            <p className="text-muted-foreground text-sm font-medium italic">Vous avez atteint la fin de la liste !</p>
+          ) : null}
+        </div>
+      </>
+    )}
+  </section>
+)}
       </main>
 
       {/* FOOTER */}
