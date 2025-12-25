@@ -1,36 +1,24 @@
 import { useState, useEffect } from "react";
-import { useRoute, Link, useLocation } from "wouter";
-import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useRoute, useLocation, Link } from "wouter";
 import { 
+  Trophy, 
   ArrowLeft, 
   Save, 
   Eye, 
   Loader2,
-  Bold, 
-  Italic, 
-  Heading2, 
-  Quote, 
-  List,
-  Youtube,   // Icône pour YouTube
-  Twitter,   // Icône pour X
-  Copyright  // Icône pour Crédit
+  ImageIcon,
+  Star,
+  StarOff
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -38,374 +26,452 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/use-auth";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { insertArticleSchema } from "@shared/schema";
 import type { ArticleWithAuthor } from "@shared/schema";
+import { z } from "zod";
 
-// Liste des catégories disponibles
-const CATEGORIES = ["NHL", "NBA", "NFL", "Soccer", "ATP", "WTA", "F1", "MLB"];
+const CATEGORIES = ["NHL", "NBA", "NFL", "Soccer", "MLB"];
 
-// Schéma de validation du formulaire
-const articleFormSchema = z.object({
+const editorSchema = z.object({
   title: z.string().min(5, "Le titre doit contenir au moins 5 caractères"),
-  excerpt: z.string().min(20, "L'extrait doit contenir au moins 20 caractères"),
-  content: z.string().min(50, "Le contenu est trop court"),
-  category: z.string().min(1, "Veuillez sélectionner une catégorie"),
+  excerpt: z.string().min(10, "L'extrait doit contenir au moins 10 caractères"),
+  content: z.string().min(50, "Le contenu doit contenir au moins 50 caractères"),
+  category: z.string().min(1, "Sélectionnez une catégorie"),
   imageUrl: z.string().url("URL invalide").optional().or(z.literal("")),
+  imageCredit: z.string().optional(),
   published: z.boolean().default(false),
   featured: z.boolean().default(false),
+  scheduledAt: z.string().optional(),
 });
 
-type ArticleFormData = z.infer<typeof articleFormSchema>;
+const slugify = (str: string) =>
+  str
+    .toLowerCase()
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const openTwitterShare = (title: string, slug: string) => {
+  const articleUrl = `${window.location.origin}/article/${slug}`;
+  const tweetText = `🚀 Nouvel article : ${title}\n\nÀ lire ici 👇\n`;
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(articleUrl)}`;
+  window.open(twitterUrl, '_blank', 'width=550,height=420');
+};
+
+type EditorForm = z.infer<typeof editorSchema>;
 
 export default function Editor() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [, params] = useRoute("/editor/:id");
   const articleId = params?.id;
   const isEditing = !!articleId;
-  const [, setLocation] = useLocation();
-  const { toast } = useToast();
-  const { isLoading: authLoading, isAuthenticated } = useAuth();
 
-  // Récupération de l'article si on est en mode édition
-  const { data: article, isLoading: articleLoading } = useQuery<ArticleWithAuthor>({
+  const { data: existingArticle, isLoading: isLoadingArticle } = useQuery<ArticleWithAuthor>({
     queryKey: ["/api/articles", articleId],
-    enabled: isEditing && isAuthenticated,
+    queryFn: async () => {
+      const res = await fetch(`/api/articles/${articleId}`);
+      if (!res.ok) throw new Error("Article not found");
+      return res.json();
+    },
+    enabled: isEditing,
   });
 
-  const form = useForm<ArticleFormData>({
-    resolver: zodResolver(articleFormSchema),
+  const form = useForm<EditorForm>({
+    resolver: zodResolver(editorSchema),
     defaultValues: {
       title: "",
       excerpt: "",
       content: "",
       category: "",
       imageUrl: "",
+      imageCredit: "",
       published: false,
       featured: false,
     },
   });
 
-  // Remplir le formulaire quand les données de l'article arrivent
   useEffect(() => {
-    if (article) {
+    if (existingArticle) {
       form.reset({
-        title: article.title,
-        excerpt: article.excerpt,
-        content: article.content,
-        category: article.category,
-        imageUrl: article.imageUrl || "",
-        published: article.published || false,
-        featured: article.featured || false,
+        title: existingArticle.title,
+        excerpt: existingArticle.excerpt,
+        content: existingArticle.content,
+        category: existingArticle.category,
+        imageUrl: existingArticle.imageUrl || "",
+        imageCredit: existingArticle.imageCredit || "",
+        published: existingArticle.published || false,
+        featured: existingArticle.featured || false,
       });
     }
-  }, [article, form]);
+  }, [existingArticle, form]);
 
-  // --- FONCTION D'INSERTION DE TEXTE (BARRE D'OUTILS) ---
-  const insertFormat = (format: string) => {
-    const textarea = document.querySelector('textarea[name="content"]') as HTMLTextAreaElement;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = form.getValues("content");
-    
-    const before = text.substring(0, start);
-    const selection = text.substring(start, end);
-    const after = text.substring(end);
-
-    let newText = "";
-    
-    // Logique d'insertion selon le bouton cliqué
-    switch (format) {
-      case "bold": 
-        newText = `${before}**${selection || "texte gras"}**${after}`; 
-        break;
-      case "italic": 
-        newText = `${before}_${selection || "texte italique"}_${after}`; 
-        break;
-      case "h2": 
-        newText = `${before}\n## ${selection || "Sous-titre"}\n${after}`; 
-        break;
-      case "quote": 
-        newText = `${before}\n> ${selection || "Citation"}\n${after}`; 
-        break;
-      case "list": 
-        newText = `${before}\n- ${selection || "Élément"}${after}`; 
-        break;
-      case "youtube": 
-        // Ajoute des sauts de ligne pour être sûr
-        newText = `${before}\n\nhttps://www.youtube.com/watch?v=VIDEO_ID\n\n${after}`; 
-        break;
-      case "twitter": 
-        newText = `${before}\n\nhttps://x.com/user/status/123456789\n\n${after}`; 
-        break;
-      case "credit": 
-        newText = `${before} [Crédit: Source] ${after}`; 
-        break;
-      default: 
-        return;
-    }
-
-    form.setValue("content", newText);
-    
-    // Remettre le focus sur la zone de texte
-    setTimeout(() => textarea.focus(), 0);
-  };
-
-  // --- SAUVEGARDE ET MISE À JOUR ---
-  const createMutation = useMutation({
-    mutationFn: async (data: ArticleFormData) => {
-      const response = await apiRequest("POST", "/api/articles", data);
-      return response.json();
+const createMutation = useMutation({
+    mutationFn: async (data: EditorForm) => {
+      const payload = {
+        ...data,
+        slug: slugify(data.title),
+        imageUrl: data.imageUrl || null,
+        scheduledAt: data.scheduledAt ? new Date(data.scheduledAt).toISOString() : undefined,
+      };
+      const res = await apiRequest("POST", "/api/articles", payload);
+      return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/articles"] });
-      toast({ title: "Article créé", description: "Votre article a été publié avec succès." });
+      queryClient.invalidateQueries({ queryKey: ["/api/articles/my"] });
+      toast({ title: "Article créé", description: "Votre article a été créé avec succès." });
+
+      if (variables.published) {
+        openTwitterShare(variables.title, data.slug);
+      }
+
       setLocation("/dashboard");
     },
-    onError: () => {
-      toast({ title: "Erreur", description: "Impossible de créer l'article.", variant: "destructive" });
-    }
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message || "Impossible de créer l'article.", variant: "destructive" });
+    },
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: ArticleFormData) => {
-      const response = await apiRequest("PATCH", `/api/articles/${articleId}`, data);
-      return response.json();
+    mutationFn: async (data: EditorForm) => {
+      const payload = {
+        ...data,
+        slug: slugify(data.title),
+        imageUrl: data.imageUrl || null,
+        scheduledAt: data.scheduledAt ? new Date(data.scheduledAt).toISOString() : undefined,
+      };
+      const res = await apiRequest("PATCH", `/api/articles/${articleId}`, payload);
+      return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/articles"] });
-      toast({ title: "Mis à jour", description: "Vos modifications sont enregistrées." });
+      queryClient.invalidateQueries({ queryKey: ["/api/articles/my"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/articles", articleId] });
+      toast({ title: "Article modifié", description: "Vos modifications ont été enregistrées." });
+
+      if (variables.published) {
+        openTwitterShare(variables.title, data.slug);
+      }
+
       setLocation("/dashboard");
     },
-    onError: () => {
-      toast({ title: "Erreur", description: "Impossible de modifier l'article.", variant: "destructive" });
-    }
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message || "Impossible de modifier l'article.", variant: "destructive" });
+    },
   });
 
-  const onSubmit = (data: ArticleFormData) => {
-    if (isEditing) updateMutation.mutate(data);
-    else createMutation.mutate(data);
-  };
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  function onSubmit(data: EditorForm) {
+    if (isEditing) {
+      updateMutation.mutate(data);
+    } else {
+      createMutation.mutate(data);
+    }
+  }
 
-  // Loading states
-  if (authLoading || (isEditing && articleLoading)) {
+  const imageUrl = form.watch("imageUrl");
+
+  if (isEditing && isLoadingArticle) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
       </div>
     );
   }
 
-  // Security check
-  if (!isAuthenticated) return null;
-
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Header fixe en haut */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
-            <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-50 glass border-b">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <Link href="/">
+              <div className="flex items-center gap-2 cursor-pointer">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg">
+                  <img src="/4.png"/>
+                </div>
+                <h1 className="text-xl font-bold tracking-tight hidden sm:block">
+                  Allo<span className="text-blue-500"> Sports</span>
+                </h1>
+              </div>
+            </Link>
+            
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
               <Link href="/dashboard">
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="sm" className="gap-2">
                   <ArrowLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline">Dashboard</span>
                 </Button>
               </Link>
-              <h1 className="text-xl font-bold hidden sm:block">
-                {isEditing ? "Modifier l'article" : "Nouvel article"}
-              </h1>
             </div>
-            <div className="flex gap-2">
-                {isEditing && article?.published && (
-                    <Link href={`/article/${articleId}`}>
-                        <Button variant="outline" size="sm" className="gap-2">
-                            <Eye className="h-4 w-4" /> Voir
-                        </Button>
-                    </Link>
-                )}
-            </div>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-5xl mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">
+            {isEditing ? "Modifier l'article" : "Nouvel article"}
+          </h1>
+          <p className="text-muted-foreground">
+            {isEditing 
+              ? "Modifiez les informations de votre article" 
+              : "Créez un nouvel article pour votre audience"}
+          </p>
+        </div>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-6 space-y-6">
-                
-                {/* --- BARRE D'OUTILS --- */}
-                <div className="flex flex-wrap gap-1 p-2 bg-muted/50 rounded-lg border sticky top-0 z-10">
-                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormat("bold")} title="Gras">
-                    <Bold className="h-4 w-4" />
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormat("italic")} title="Italique">
-                    <Italic className="h-4 w-4" />
-                  </Button>
-                  <div className="w-px h-6 bg-border mx-1" />
-                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormat("h2")} title="Sous-titre">
-                    <Heading2 className="h-4 w-4" />
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormat("quote")} title="Citation">
-                    <Quote className="h-4 w-4" />
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormat("list")} title="Liste">
-                    <List className="h-4 w-4" />
-                  </Button>
-                  <div className="w-px h-6 bg-border mx-1" />
-                  
-                  {/* --- BOUTONS SPÉCIAUX --- */}
-                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormat("youtube")} title="Insérer YouTube" className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                    <Youtube className="h-4 w-4" />
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormat("twitter")} title="Insérer X (Twitter)" className="text-blue-500 hover:text-blue-600 hover:bg-blue-50">
-                    <Twitter className="h-4 w-4" />
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormat("credit")} title="Ajouter un crédit/source">
-                    <Copyright className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                {/* Champ Titre */}
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input 
-                            placeholder="Titre principal" 
-                            className="text-2xl font-bold border-none px-0 shadow-none focus-visible:ring-0" 
-                            {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Sélecteur Catégorie */}
-                <FormField
-                  control={form.control}
-                  name="category"
-                  render={({ field }) => (
-                    <FormItem>
-                       <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Choisir une catégorie" />
-                            </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                        </SelectContent>
-                       </Select>
-                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Champ Image URL */}
-                <FormField
-                  control={form.control}
-                  name="imageUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>URL de l'image de couverture</FormLabel>
-                      <FormControl>
-                        <Input placeholder="https://..." {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Champ Extrait */}
-                <FormField
-                  control={form.control}
-                  name="excerpt"
-                  render={({ field }) => (
-                    <FormItem>
-                       <FormLabel>Extrait (Introduction)</FormLabel>
-                       <FormControl>
-                           <Textarea 
-                                placeholder="Un court résumé accrocheur..." 
-                                className="resize-none italic text-muted-foreground" 
-                                rows={2} 
-                                {...field} 
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <Card className="border-0 shadow-lg">
+                  <CardHeader>
+                    <CardTitle>Contenu</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Titre</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Un titre accrocheur pour votre article"
+                              className="text-lg focus-visible:ring-blue-500"
+                              {...field}
+                              data-testid="input-title"
                             />
-                       </FormControl>
-                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                {/* Champ Contenu Principal */}
-                <FormField
-                  control={form.control}
-                  name="content"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Contenu de l'article</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Rédigez votre article ici..." 
-                          className="min-h-[500px] font-serif text-lg leading-relaxed p-4 border rounded-md focus-visible:ring-1" 
-                          {...field} 
+                    <FormField
+                      control={form.control}
+                      name="excerpt"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Extrait</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Un court résumé de l'article (apparaît dans les aperçus)"
+                              rows={3}
+                              className="text-lg focus-visible:ring-blue-500"
+                              {...field}
+                              data-testid="input-excerpt"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="content"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contenu</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Rédigez le contenu complet de votre article ici..."
+                              rows={15}
+                              className="font-serif leading-relaxed focus-visible:ring-blue-500"
+                              {...field}
+                              data-testid="input-content"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-6">
+                <Card className="border-0 shadow-lg">
+                  <CardHeader>
+                    <CardTitle>Publication</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Catégorie</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-category" className="focus-visible:ring-blue-500">
+                                <SelectValue placeholder="Sélectionner une catégorie" className="focus-visible:ring-blue-500"/>
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {CATEGORIES.map((cat) => (
+                                <SelectItem key={cat} value={cat}>
+                                  {cat}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="published"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base flex items-center gap-2">
+                              <Eye className="h-4 w-4" />
+                              Publier
+                            </FormLabel>
+                            <p className="text-sm text-muted-foreground">
+                              Rendre l'article visible au public
+                            </p>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="switch-published"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="featured"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base flex items-center gap-2">
+                              {field.value ? (
+                                <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                              ) : (
+                                <StarOff className="h-4 w-4" />
+                              )}
+                              À la une
+                            </FormLabel>
+                            <p className="text-sm text-muted-foreground">
+                              Mettre en avant sur la page d'accueil
+                            </p>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="switch-featured"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+
+                <Card className="border-0 shadow-lg">
+                  <CardHeader>
+                    <CardTitle>Image</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="imageUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>URL de l'image</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="https://exemple.com/image.jpg"
+                              className="focus-visible:ring-blue-500"
+                              {...field}
+                              data-testid="input-image-url"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {imageUrl ? (
+                      <div className="aspect-video rounded-lg overflow-hidden bg-muted">
+                        <img 
+                          src={imageUrl} 
+                          alt="Aperçu"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                      </div>
+                    ) : (
+                      <div className="aspect-video rounded-lg bg-muted flex items-center justify-center">
+                        <div className="text-center text-muted-foreground">
+                          <ImageIcon className="h-10 w-10 mx-auto mb-2" />
+                          <p className="text-sm">Aperçu de l'image</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+                <FormField
+  control={form.control}
+  name="imageCredit"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Crédit photo</FormLabel>
+      <FormControl>
+        <Input
+          placeholder="Ex: Getty Images / NHL"
+          className="focus-visible:ring-blue-500"
+          {...field}
+          data-testid="input-image-credit"
+        />
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+                <Button 
+                  type="submit" 
+                  className="w-full gap-2 shadow-lg"
+                  disabled={isSubmitting}
+                  data-testid="button-save"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin blue-500" />
+                      {isEditing ? "Enregistrement..." : "Création..."}
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      {isEditing ? "Enregistrer" : "Créer l'article"}
+                    </>
                   )}
-                />
-
-                {/* Options de publication */}
-                <div className="flex flex-col sm:flex-row gap-6 pt-4 border-t">
-                  <FormField 
-                    control={form.control} 
-                    name="published" 
-                    render={({ field }) => (
-                      <FormItem className="flex items-center gap-3 space-y-0 rounded-md border p-4 shadow-sm">
-                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                        <div className="space-y-1 leading-none">
-                            <FormLabel>Publier</FormLabel>
-                            <p className="text-sm text-muted-foreground">Rendre visible aux lecteurs</p>
-                        </div>
-                      </FormItem>
-                  )}/>
-                  
-                  <FormField 
-                    control={form.control} 
-                    name="featured" 
-                    render={({ field }) => (
-                      <FormItem className="flex items-center gap-3 space-y-0 rounded-md border p-4 shadow-sm">
-                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                        <div className="space-y-1 leading-none">
-                            <FormLabel>À la une</FormLabel>
-                            <p className="text-sm text-muted-foreground">Afficher dans le carrousel</p>
-                        </div>
-                      </FormItem>
-                  )}/>
-                </div>
-
-              </CardContent>
-            </Card>
-
-            {/* Boutons d'action */}
-            <div className="flex justify-end gap-4 sticky bottom-4 z-10">
-              <Link href="/dashboard">
-                <Button type="button" variant="outline" className="shadow-lg bg-background">Annuler</Button>
-              </Link>
-              <Button type="submit" disabled={isPending} className="gap-2 shadow-lg bg-blue-600 hover:bg-blue-700 text-white">
-                {isPending ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />}
-                {isEditing ? "Enregistrer les modifications" : "Créer l'article"}
-              </Button>
+                </Button>
+              </div>
             </div>
-            
           </form>
         </Form>
       </main>
