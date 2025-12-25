@@ -230,8 +230,8 @@ const copyLink = async () => {
           <div className="flex items-center justify-between gap-4">
             <Link href="/">
               <div className="flex items-center gap-2 cursor-pointer">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-500/80 flex items-center justify-center shadow-lg">
-                  <Trophy className="h-5 w-5 text-white" />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg">
+                  <img src="/4.png"/>
                 </div>
                 <h1 className="text-xl font-bold tracking-tight hidden sm:block">
                   Allo<span className="text-blue-500"> Sports</span>
