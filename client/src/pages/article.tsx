@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useRoute, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -6,8 +7,7 @@ import {
   Clock, 
   Calendar, 
   Share2, 
-  Bookmark,
-  Trophy,
+  PlayCircle,
   ChevronRight
 } from "lucide-react";
 import {
@@ -33,6 +33,43 @@ const CATEGORY_COLORS: Record<string, string> = {
   MLB: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20",
 };
 
+// --- COMPOSANT SEO (Pour que Facebook/X voient l'image) ---
+function SEOHead({ title, description, image, url }: { title: string, description: string, image: string, url: string }) {
+  useEffect(() => {
+    // Titre de la page
+    document.title = `${title} | Allo Sports`;
+
+    // Fonction pour mettre à jour ou créer une balise meta
+    const updateMeta = (name: string, content: string, isProperty = false) => {
+      let element = document.querySelector(`meta[${isProperty ? 'property' : 'name'}="${name}"]`);
+      if (!element) {
+        element = document.createElement('meta');
+        element.setAttribute(isProperty ? 'property' : 'name', name);
+        document.head.appendChild(element);
+      }
+      element.setAttribute('content', content);
+    };
+
+    // Open Graph (Facebook / LinkedIn)
+    updateMeta('og:title', title, true);
+    updateMeta('og:description', description, true);
+    updateMeta('og:image', image, true);
+    updateMeta('og:url', url, true);
+    updateMeta('og:type', 'article', true);
+
+    // Twitter Card (X)
+    updateMeta('twitter:card', 'summary_large_image', false);
+    updateMeta('twitter:title', title, false);
+    updateMeta('twitter:description', description, false);
+    updateMeta('twitter:image', image, false);
+
+  }, [title, description, image, url]);
+
+  return null;
+}
+
+// --- FONCTIONS UTILITAIRES ---
+
 function formatDate(date: Date | string | null) {
   if (!date) return "";
   return new Date(date).toLocaleDateString("fr-FR", {
@@ -50,6 +87,61 @@ function getReadTime(content: string | undefined) {
   return `${minutes} min de lecture`;
 }
 
+// --- PARSEUR DE CONTENU (Vidéos, Crédits, etc.) ---
+function RenderArticleContent({ content }: { content: string }) {
+  // On divise par paragraphes
+  const paragraphs = content.split("\n\n");
+
+  return (
+    <div className="space-y-6">
+      {paragraphs.map((paragraph, index) => {
+        // 1. Détection YouTube (Lien seul sur une ligne)
+        // Format supporté: https://www.youtube.com/watch?v=XXXX ou https://youtu.be/XXXX
+        const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+        const youtubeMatch = paragraph.match(youtubeRegex);
+
+        // Si le paragraphe est JUSTE un lien YouTube (ou très court avec le lien)
+        if (youtubeMatch && paragraph.length < 100) {
+          const videoId = youtubeMatch[1];
+          return (
+            <div key={index} className="my-8">
+              <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-lg bg-black">
+                <iframe
+                  src={`https://www.youtube.com/embed/${videoId}`}
+                  title="YouTube video player"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="absolute top-0 left-0 w-full h-full border-0"
+                />
+              </div>
+            </div>
+          );
+        }
+
+        // 2. Détection de Crédit spécifique [Crédit: Nom]
+        // Exemple dans l'éditeur: "Bla bla bla... [Crédit: RDS]"
+        if (paragraph.includes("[Crédit:")) {
+            const parts = paragraph.split("[Crédit:");
+            const text = parts[0];
+            const credit = parts[1].replace("]", "").trim();
+            return (
+                <p key={index} className="leading-relaxed">
+                    {text}
+                    <span className="block mt-1 text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                        Source/Crédit : {credit}
+                    </span>
+                </p>
+            );
+        }
+
+        // 3. Texte normal
+        return <p key={index} className="leading-relaxed text-lg text-foreground/90">{paragraph}</p>;
+      })}
+    </div>
+  );
+}
+
+// --- SKELETON ---
 function ArticlePageSkeleton() {
   return (
     <div className="min-h-screen bg-background">
@@ -76,9 +168,6 @@ function ArticlePageSkeleton() {
         <div className="space-y-4">
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-5/6" />
         </div>
       </div>
     </div>
@@ -138,100 +227,64 @@ export default function ArticlePage() {
     .filter((a) => a.id !== articleId && a.category === article?.category && a.published)
     .slice(0, 3);
 
-  if (isLoading) {
-    return <ArticlePageSkeleton />;
-  }
+  if (isLoading) return <ArticlePageSkeleton />;
 
   if (error || !article) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
-          <div className="max-w-7xl mx-auto px-4 py-3">
-            <div className="flex items-center justify-between gap-4">
-              <Link href="/">
-                <div className="flex items-center gap-2 cursor-pointer">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg">
-                    <img src="/4.png"/>
-                  </div>
-                  <h1 className="text-xl font-bold tracking-tight">
-                    Allo<span className="text-blue-500"> Sports</span>
-                  </h1>
-                </div>
-              </Link>
-              <ThemeToggle />
-            </div>
-          </div>
-        </header>
-        
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center max-w-md mx-auto px-4">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
-              <img src="/4.png"/>
-            </div>
-            <h1 className="text-2xl font-bold mb-4">Article non trouvé</h1>
-            <p className="text-muted-foreground mb-8">
-              L'article que vous recherchez n'existe pas ou a été supprimé.
-            </p>
-            <Link href="/">
-              <Button className="gap-2">
-                <ArrowLeft className="h-4 w-4" />
-                Retour à l'accueil
-              </Button>
-            </Link>
-          </div>
-        </div>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+         <h1 className="text-2xl font-bold mb-4">Article introuvable</h1>
+         <Link href="/"><Button>Retour à l'accueil</Button></Link>
       </div>
     );
   }
 
-  const shareUrl =
-  typeof window !== "undefined" ? window.location.href : "";
+  // --- LOGIQUE DE PARTAGE ---
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+  
+  // Facebook : On ne peut pas pré-remplir le texte (règle Facebook), mais l'image sera là grâce aux Meta Tags
+  const shareOnFacebook = () => {
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+      "_blank"
+    );
+  };
 
-const shareText = `${article.title} - Allo Sports`;
+  // X (Twitter) : On utilise l'URL qui génère une "Card" (Image + Titre)
+  const shareOnX = () => {
+    window.open(
+      `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(article.title)}`,
+      "_blank"
+    );
+  };
 
-const shareOnX = () => {
-  window.open(
-    `https://twitter.com/intent/tweet?text=${encodeURIComponent(
-      shareText
-    )}&url=${encodeURIComponent(shareUrl)}`,
-    "_blank"
-  );
-};
-
-const shareOnFacebook = () => {
-  window.open(
-    `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
-      shareUrl
-    )}`,
-    "_blank"
-  );
-};
-
-const copyLink = async () => {
-  await navigator.clipboard.writeText(shareUrl);
-  alert("Lien copié dans le presse-papier");
-};
+  const copyLink = async () => {
+    await navigator.clipboard.writeText(shareUrl);
+    alert("Lien copié !");
+  };
 
   const authorName = article.author 
     ? [article.author.firstName, article.author.lastName].filter(Boolean).join(" ") || "Auteur"
     : "Auteur";
-  const initials = authorName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) || "AU";
+  const initials = authorName.slice(0, 2).toUpperCase();
   const categoryColor = CATEGORY_COLORS[article.category] || "bg-blue-500/10 text-blue-500 border-blue-500/20";
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+      {/* 1. Injection des Meta Tags pour les réseaux sociaux */}
+      <SEOHead 
+        title={article.title}
+        description={article.excerpt}
+        image={article.imageUrl || "https://allosports.ca/4.png"} // Image par défaut si pas d'image
+        url={shareUrl}
+      />
+
+      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-4">
             <Link href="/">
               <div className="flex items-center gap-2 cursor-pointer">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg">
-                  <img src="/4.png"/>
+                  <img src="/4.png" alt="Logo"/>
                 </div>
                 <h1 className="text-xl font-bold tracking-tight hidden sm:block">
                   Allo<span className="text-blue-500"> Sports</span>
@@ -242,7 +295,7 @@ const copyLink = async () => {
             <div className="flex items-center gap-2">
               <ThemeToggle />
               <Link href="/">
-                <Button variant="ghost" className="gap-2" data-testid="button-back">
+                <Button variant="ghost" className="gap-2">
                   <ArrowLeft className="h-4 w-4" />
                   <span className="hidden sm:inline">Retour</span>
                 </Button>
@@ -259,31 +312,32 @@ const copyLink = async () => {
           <span className="text-foreground">{article.category}</span>
         </nav>
 
+        {/* Image principale */}
         <div className="mb-8">
-  <div className="aspect-video rounded-2xl overflow-hidden shadow-xl">
-    <img
-      src={article.imageUrl || "https://images.unsplash.com/photo-1461896836934-gy5rba-sport?w=1200&h=675&fit=crop"}
-      alt={article.title}
-      className="w-full h-full object-cover"
-    />
-  </div>
-
-  {article.imageCredit && (
-    <p className="mt-2 text-xs text-muted-foreground italic">
-       {article.imageCredit}
-    </p>
-  )}
-</div>
+          <div className="aspect-video rounded-2xl overflow-hidden shadow-xl">
+            <img
+              src={article.imageUrl || "/placeholder-sport.jpg"}
+              alt={article.title}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          {article.imageCredit && (
+            <p className="mt-2 text-xs text-muted-foreground italic flex items-center gap-1">
+               © {article.imageCredit}
+            </p>
+          )}
+        </div>
 
         <Badge variant="outline" className={`mb-4 ${categoryColor}`}>
           {article.category}
         </Badge>
 
-        <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold mb-6 leading-tight" data-testid="text-article-title">
+        <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold mb-6 leading-tight">
           {article.title}
         </h1>
 
-        <div className="flex flex-wrap items-center gap-6 mb-8 pb-8 border-b">
+        {/* Info Auteur & Partage */}
+        <div className="flex flex-wrap items-center gap-6 mb-8 pb-8 border-b justify-between">
           <div className="flex items-center gap-4">
             <Avatar className="h-14 w-14 ring-2 ring-background shadow-md">
               <AvatarImage src={article.author?.profileImageUrl || undefined} />
@@ -292,64 +346,45 @@ const copyLink = async () => {
               </AvatarFallback>
             </Avatar>
             <div>
-              <p className="font-semibold text-lg" data-testid="text-author-name">{authorName}</p>
-              <p className="text-sm text-muted-foreground">Auteur</p>
+              <p className="font-semibold text-lg">{authorName}</p>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Calendar className="h-3 w-3" />
+                <span>{formatDate(article.createdAt)}</span>
+              </div>
             </div>
           </div>
           
-          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1.5 bg-muted px-3 py-1.5 rounded-full">
-              <Calendar className="h-4 w-4" />
-              <span>{formatDate(article.createdAt)}</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-muted px-3 py-1.5 rounded-full">
-              <Clock className="h-4 w-4" />
-              <span>{getReadTime(article.content)}</span>
-            </div>
+          <div className="flex items-center gap-3">
+             <div className="hidden sm:flex items-center gap-1.5 bg-muted px-3 py-1.5 rounded-full text-sm text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                <span>{getReadTime(article.content)}</span>
+             </div>
+
+             <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="default" size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700">
+                  <Share2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Partager</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={shareOnFacebook}>Facebook</DropdownMenuItem>
+                <DropdownMenuItem onClick={shareOnX}>X (Twitter)</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={copyLink}>Copier le lien</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          
-          <DropdownMenu>
-  <DropdownMenuTrigger asChild>
-    <Button variant="outline" size="sm" className="gap-2">
-      <Share2 className="h-4 w-4" />
-      <span className="hidden sm:inline">Partager</span>
-    </Button>
-  </DropdownMenuTrigger>
-
-  <DropdownMenuContent align="end">
-    <DropdownMenuItem onClick={shareOnX}>
-      Partager sur X
-    </DropdownMenuItem>
-
-    <DropdownMenuItem onClick={shareOnFacebook}>
-      Partager sur Facebook
-    </DropdownMenuItem>
-
-    <DropdownMenuSeparator />
-
-    <DropdownMenuItem onClick={copyLink}>
-      Copier le lien
-    </DropdownMenuItem>
-
-    <DropdownMenuItem
-      onClick={() => {
-        copyLink();
-        alert("Lien copié — collez-le dans Instagram");
-      }}
-    >
-      Instagram (copier le lien)
-    </DropdownMenuItem>
-  </DropdownMenuContent>
-</DropdownMenu>
         </div>
 
+        {/* --- CONTENU DE L'ARTICLE (AVEC VIDÉOS) --- */}
         <article className="prose prose-lg dark:prose-invert max-w-none mb-16">
-          <p className="text-xl text-muted-foreground font-medium leading-relaxed mb-8">
+          <p className="text-xl text-muted-foreground font-medium leading-relaxed mb-8 border-l-4 border-blue-500 pl-4">
             {article.excerpt}
           </p>
-          {article.content.split("\n\n").map((paragraph, index) => (
-            <p key={index} className="leading-relaxed">{paragraph}</p>
-          ))}
+          
+          {/* C'est ici que la magie opère pour les vidéos */}
+          <RenderArticleContent content={article.content} />
         </article>
 
         {relatedArticles.length > 0 && (
