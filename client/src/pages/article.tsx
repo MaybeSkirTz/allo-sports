@@ -1,13 +1,12 @@
-import { useEffect } from "react";
 import { useRoute, Link } from "wouter";
-import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
+import { Helmet } from "react-helmet-async";
+import { TwitterTweetEmbed } from "react-twitter-embed";
 import { 
   ArrowLeft, 
   Clock, 
   Calendar, 
   Share2, 
-  PlayCircle,
   ChevronRight
 } from "lucide-react";
 import {
@@ -33,43 +32,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   MLB: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20",
 };
 
-// --- COMPOSANT SEO (Pour que Facebook/X voient l'image) ---
-function SEOHead({ title, description, image, url }: { title: string, description: string, image: string, url: string }) {
-  useEffect(() => {
-    // Titre de la page
-    document.title = `${title} | Allo Sports`;
-
-    // Fonction pour mettre à jour ou créer une balise meta
-    const updateMeta = (name: string, content: string, isProperty = false) => {
-      let element = document.querySelector(`meta[${isProperty ? 'property' : 'name'}="${name}"]`);
-      if (!element) {
-        element = document.createElement('meta');
-        element.setAttribute(isProperty ? 'property' : 'name', name);
-        document.head.appendChild(element);
-      }
-      element.setAttribute('content', content);
-    };
-
-    // Open Graph (Facebook / LinkedIn)
-    updateMeta('og:title', title, true);
-    updateMeta('og:description', description, true);
-    updateMeta('og:image', image, true);
-    updateMeta('og:url', url, true);
-    updateMeta('og:type', 'article', true);
-
-    // Twitter Card (X)
-    updateMeta('twitter:card', 'summary_large_image', false);
-    updateMeta('twitter:title', title, false);
-    updateMeta('twitter:description', description, false);
-    updateMeta('twitter:image', image, false);
-
-  }, [title, description, image, url]);
-
-  return null;
-}
-
 // --- FONCTIONS UTILITAIRES ---
-
 function formatDate(date: Date | string | null) {
   if (!date) return "";
   return new Date(date).toLocaleDateString("fr-FR", {
@@ -87,21 +50,24 @@ function getReadTime(content: string | undefined) {
   return `${minutes} min de lecture`;
 }
 
-// --- PARSEUR DE CONTENU (Vidéos, Crédits, etc.) ---
+// --- PARSEUR DE CONTENU INTELLIGENT ---
 function RenderArticleContent({ content }: { content: string }) {
-  // On divise par paragraphes
-  const paragraphs = content.split("\n\n");
+  // CORRECTION: On coupe par saut de ligne simple (\n)
+  const lines = content.split(/\r?\n/);
 
   return (
-    <div className="space-y-6">
-      {paragraphs.map((paragraph, index) => {
-        // 1. Détection YouTube (Lien seul sur une ligne)
-        // Format supporté: https://www.youtube.com/watch?v=XXXX ou https://youtu.be/XXXX
-        const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-        const youtubeMatch = paragraph.match(youtubeRegex);
+    <div className="space-y-4 text-lg text-foreground/90 leading-relaxed">
+      {lines.map((line, index) => {
+        const trimmed = line.trim();
+        
+        // Gestion des lignes vides (pour l'espacement visuel)
+        if (!trimmed) return <div key={index} className="h-2" />;
 
-        // Si le paragraphe est JUSTE un lien YouTube (ou très court avec le lien)
-        if (youtubeMatch && paragraph.length < 100) {
+        // 1. Détection YouTube
+        const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+        const youtubeMatch = trimmed.match(youtubeRegex);
+
+        if (youtubeMatch) {
           const videoId = youtubeMatch[1];
           return (
             <div key={index} className="my-8">
@@ -118,92 +84,89 @@ function RenderArticleContent({ content }: { content: string }) {
           );
         }
 
-        // 2. Détection de Crédit spécifique [Crédit: Nom]
-        // Exemple dans l'éditeur: "Bla bla bla... [Crédit: RDS]"
-        if (paragraph.includes("[Crédit:")) {
-            const parts = paragraph.split("[Crédit:");
-            const text = parts[0];
-            const credit = parts[1].replace("]", "").trim();
+        // 2. Détection Twitter / X
+        // Cherche les liens twitter.com ou x.com contenant un ID
+        const twitterRegex = /(?:twitter\.com|x\.com)\/(?:#!\/)?(\w+)\/status(es)?\/(\d+)/;
+        const twitterMatch = trimmed.match(twitterRegex);
+
+        if (twitterMatch) {
+          const tweetId = twitterMatch[3]; // L'ID du tweet
+          return (
+            <div key={index} className="my-6 flex justify-center">
+              <div className="w-full max-w-[550px]">
+                 {/* Tweet aligné au centre, thème sombre */}
+                 <TwitterTweetEmbed tweetId={tweetId} options={{ theme: 'dark', align: 'center' }} />
+              </div>
+            </div>
+          );
+        }
+
+        // 3. Détection de Crédit [Crédit: ...]
+        if (trimmed.includes("[Crédit:")) {
+            const parts = trimmed.split("[Crédit:");
+            const textPart = parts[0];
+            const creditPart = parts[1].replace("]", "").trim();
+            
             return (
-                <p key={index} className="leading-relaxed">
-                    {text}
-                    <span className="block mt-1 text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                        Source/Crédit : {credit}
-                    </span>
-                </p>
+                <div key={index}>
+                    {textPart && <p className="mb-1">{textPart}</p>}
+                    <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider border-l-4 border-blue-500 pl-3 py-1 bg-muted/30 inline-block rounded-r-md">
+                        Source : {creditPart}
+                    </p>
+                </div>
             );
         }
 
-        // 3. Texte normal
-        return <p key={index} className="leading-relaxed text-lg text-foreground/90">{paragraph}</p>;
+        // 4. Texte standard (Paragraphe)
+        return <p key={index}>{line}</p>;
       })}
     </div>
   );
 }
 
-// --- SKELETON ---
+// --- SKELETON (Chargement) ---
 function ArticlePageSkeleton() {
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
-            <Skeleton className="h-10 w-40" />
-            <Skeleton className="h-10 w-24" />
-          </div>
-        </div>
-      </header>
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-background pt-20 px-4 max-w-4xl mx-auto">
         <Skeleton className="aspect-video w-full rounded-2xl mb-8" />
-        <Skeleton className="h-6 w-24 mb-4" />
-        <Skeleton className="h-12 w-full mb-4" />
-        <Skeleton className="h-12 w-3/4 mb-8" />
-        <div className="flex items-center gap-4 mb-8 pb-8 border-b">
-          <Skeleton className="h-14 w-14 rounded-full" />
-          <div>
-            <Skeleton className="h-5 w-32 mb-2" />
-            <Skeleton className="h-4 w-48" />
-          </div>
-        </div>
+        <Skeleton className="h-12 w-3/4 mb-4" />
         <div className="space-y-4">
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
         </div>
-      </div>
     </div>
   );
 }
 
+// --- CARTE ARTICLE SIMILAIRE ---
 function RelatedArticleCard({ article }: { article: ArticleWithAuthor }) {
   const categoryColor = CATEGORY_COLORS[article.category] || "bg-blue-500/10 text-blue-500 border-blue-500/20";
-  
   return (
     <Link href={`/article/${article.id}`}>
       <Card className="overflow-hidden border shadow-sm cursor-pointer group transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
         <div className="aspect-video overflow-hidden relative">
           <img
-            src={article.imageUrl || "https://images.unsplash.com/photo-1461896836934-gy5rba-sport?w=400&h=225&fit=crop"}
+            src={article.imageUrl || "/placeholder-sport.jpg"}
             alt={article.title}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         </div>
         <CardContent className="p-4">
-          <Badge variant="outline" className={`mb-2 text-xs ${categoryColor}`}>
-            {article.category}
-          </Badge>
-          <h3 className="font-bold line-clamp-2 group-hover:text-blue-500 transition-colors">
-            {article.title}
-          </h3>
+          <Badge variant="outline" className={`mb-2 text-xs ${categoryColor}`}>{article.category}</Badge>
+          <h3 className="font-bold line-clamp-2 group-hover:text-blue-500 transition-colors">{article.title}</h3>
         </CardContent>
       </Card>
     </Link>
   );
 }
 
+// --- COMPOSANT PRINCIPAL ---
 export default function ArticlePage() {
   const [, params] = useRoute("/article/:id");
   const articleId = params?.id;
 
+  // 1. Récupération de l'article courant
   const { data: article, isLoading, error } = useQuery<ArticleWithAuthor>({
     queryKey: ["article", articleId],
     queryFn: async () => {
@@ -214,13 +177,10 @@ export default function ArticlePage() {
     enabled: !!articleId,
   });
 
+  // 2. Récupération de tous les articles pour "Articles similaires"
   const { data: allArticles } = useQuery<ArticleWithAuthor[]>({
     queryKey: ["/api/articles"],
-    queryFn: async () => {
-      const res = await fetch("/api/articles", { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch articles");
-      return res.json();
-    },
+    queryFn: async () => fetch("/api/articles", { credentials: "include" }).then(res => res.json()),
   });
 
   const relatedArticles = (allArticles || [])
@@ -228,183 +188,158 @@ export default function ArticlePage() {
     .slice(0, 3);
 
   if (isLoading) return <ArticlePageSkeleton />;
+  if (error || !article) return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+      <h1 className="text-2xl font-bold">Article introuvable</h1>
+      <Link href="/"><Button>Retour à l'accueil</Button></Link>
+    </div>
+  );
 
-  if (error || !article) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
-         <h1 className="text-2xl font-bold mb-4">Article introuvable</h1>
-         <Link href="/"><Button>Retour à l'accueil</Button></Link>
-      </div>
-    );
-  }
-
-  // --- LOGIQUE DE PARTAGE ---
+  // --- LOGIQUE DE PARTAGE ET SEO ---
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-  
-  // Facebook : On ne peut pas pré-remplir le texte (règle Facebook), mais l'image sera là grâce aux Meta Tags
-  const shareOnFacebook = () => {
-    window.open(
-      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
-      "_blank"
-    );
-  };
+  // IMPORTANT: Si pas d'image, on met une image par défaut
+  const imageUrl = article.imageUrl || "https://allosports.ca/4.png"; 
 
-  // X (Twitter) : On utilise l'URL qui génère une "Card" (Image + Titre)
-  const shareOnX = () => {
-    window.open(
-      `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(article.title)}`,
-      "_blank"
-    );
-  };
+  const shareOnFacebook = () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, "_blank");
+  const shareOnX = () => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(article.title)}`, "_blank");
+  const copyLink = async () => { await navigator.clipboard.writeText(shareUrl); alert("Lien copié !"); };
 
-  const copyLink = async () => {
-    await navigator.clipboard.writeText(shareUrl);
-    alert("Lien copié !");
-  };
-
-  const authorName = article.author 
-    ? [article.author.firstName, article.author.lastName].filter(Boolean).join(" ") || "Auteur"
-    : "Auteur";
+  const authorName = article.author ? `${article.author.firstName} ${article.author.lastName}` : "Auteur";
   const initials = authorName.slice(0, 2).toUpperCase();
-  const categoryColor = CATEGORY_COLORS[article.category] || "bg-blue-500/10 text-blue-500 border-blue-500/20";
 
   return (
     <div className="min-h-screen bg-background">
-      {/* 1. Injection des Meta Tags pour les réseaux sociaux */}
-      <SEOHead 
-        title={article.title}
-        description={article.excerpt}
-        image={article.imageUrl || "https://allosports.ca/4.png"} // Image par défaut si pas d'image
-        url={shareUrl}
-      />
+      {/* --- REACT HELMET (SEO & SOCIAL SHARE) --- */}
+      <Helmet>
+        <title>{article.title} | Allo Sports</title>
+        <meta name="description" content={article.excerpt} />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="article" />
+        <meta property="og:title" content={article.title} />
+        <meta property="og:description" content={article.excerpt} />
+        <meta property="og:image" content={imageUrl} />
+        <meta property="og:url" content={shareUrl} />
+        <meta property="og:site_name" content="Allo Sports" />
 
+        {/* Twitter / X */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={article.title} />
+        <meta name="twitter:description" content={article.excerpt} />
+        <meta name="twitter:image" content={imageUrl} />
+      </Helmet>
+
+      {/* HEADER */}
       <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
             <Link href="/">
               <div className="flex items-center gap-2 cursor-pointer">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg">
-                  <img src="/4.png" alt="Logo"/>
-                </div>
-                <h1 className="text-xl font-bold tracking-tight hidden sm:block">
-                  Allo<span className="text-blue-500"> Sports</span>
-                </h1>
+                 <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-white">
+                    <img src="/4.png" className="w-8 h-8" alt="Logo"/>
+                 </div>
+                 <h1 className="text-xl font-bold hidden sm:block">Allo<span className="text-blue-500">Sports</span></h1>
               </div>
             </Link>
-            
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <Link href="/">
-                <Button variant="ghost" className="gap-2">
-                  <ArrowLeft className="h-4 w-4" />
-                  <span className="hidden sm:inline">Retour</span>
-                </Button>
-              </Link>
+            <div className="flex gap-2">
+                <ThemeToggle />
+                <Link href="/"><Button variant="ghost" size="sm">Retour</Button></Link>
             </div>
-          </div>
         </div>
       </header>
 
+      {/* CONTENU PRINCIPAL */}
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6 flex-wrap">
-          <Link href="/" className="hover:text-foreground transition-colors">Accueil</Link>
+        
+        {/* Fil d'ariane */}
+        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+          <Link href="/" className="hover:text-foreground">Accueil</Link>
           <ChevronRight className="h-4 w-4" />
           <span className="text-foreground">{article.category}</span>
         </nav>
 
-        {/* Image principale */}
-        <div className="mb-8">
-          <div className="aspect-video rounded-2xl overflow-hidden shadow-xl">
-            <img
-              src={article.imageUrl || "/placeholder-sport.jpg"}
-              alt={article.title}
-              className="w-full h-full object-cover"
-            />
-          </div>
+        {/* Image à la une */}
+        <div className="mb-8 relative rounded-2xl overflow-hidden shadow-xl aspect-video bg-muted">
+          <img src={imageUrl} alt={article.title} className="w-full h-full object-cover" />
           {article.imageCredit && (
-            <p className="mt-2 text-xs text-muted-foreground italic flex items-center gap-1">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent text-white text-xs px-4 py-2 pt-8">
                © {article.imageCredit}
-            </p>
+            </div>
           )}
         </div>
 
-        <Badge variant="outline" className={`mb-4 ${categoryColor}`}>
-          {article.category}
+        <Badge className={`mb-4 ${CATEGORY_COLORS[article.category] || "bg-secondary"}`} variant="outline">
+            {article.category}
         </Badge>
 
-        <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold mb-6 leading-tight">
-          {article.title}
-        </h1>
+        <h1 className="text-3xl md:text-5xl font-extrabold mb-6 leading-tight text-foreground">{article.title}</h1>
 
-        {/* Info Auteur & Partage */}
-        <div className="flex flex-wrap items-center gap-6 mb-8 pb-8 border-b justify-between">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-14 w-14 ring-2 ring-background shadow-md">
-              <AvatarImage src={article.author?.profileImageUrl || undefined} />
-              <AvatarFallback className="text-lg font-semibold bg-blue-500/10 text-blue-500">
-                {initials}
-              </AvatarFallback>
+        {/* Infos Auteur et Boutons de partage */}
+        <div className="flex flex-wrap items-center justify-between gap-6 mb-8 pb-8 border-b">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-12 w-12 border-2 border-background shadow-sm">
+                <AvatarFallback>{initials}</AvatarFallback>
+                <AvatarImage src={article.author?.profileImageUrl || undefined} />
             </Avatar>
             <div>
-              <p className="font-semibold text-lg">{authorName}</p>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Calendar className="h-3 w-3" />
-                <span>{formatDate(article.createdAt)}</span>
-              </div>
+                <p className="font-semibold text-lg leading-none mb-1">{authorName}</p>
+                <div className="flex gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3"/> {formatDate(article.createdAt)}</span>
+                </div>
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
-             <div className="hidden sm:flex items-center gap-1.5 bg-muted px-3 py-1.5 rounded-full text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                <span>{getReadTime(article.content)}</span>
+          <div className="flex gap-2">
+             <div className="hidden sm:flex items-center gap-1 text-sm text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full border">
+                <Clock className="h-3 w-3"/> {getReadTime(article.content)}
              </div>
-
              <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="default" size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700">
-                  <Share2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Partager</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={shareOnFacebook}>Facebook</DropdownMenuItem>
-                <DropdownMenuItem onClick={shareOnX}>X (Twitter)</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={copyLink}>Copier le lien</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700 shadow-md transition-all hover:-translate-y-0.5">
+                        <Share2 className="h-4 w-4"/> Partager
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem onClick={shareOnFacebook} className="cursor-pointer">
+                        Partager sur Facebook
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={shareOnX} className="cursor-pointer">
+                        Partager sur X (Twitter)
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={copyLink} className="cursor-pointer">
+                        Copier le lien
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+             </DropdownMenu>
           </div>
         </div>
 
-        {/* --- CONTENU DE L'ARTICLE (AVEC VIDÉOS) --- */}
+        {/* CORPS DE L'ARTICLE */}
         <article className="prose prose-lg dark:prose-invert max-w-none mb-16">
-          <p className="text-xl text-muted-foreground font-medium leading-relaxed mb-8 border-l-4 border-blue-500 pl-4">
-            {article.excerpt}
-          </p>
-          
-          {/* C'est ici que la magie opère pour les vidéos */}
-          <RenderArticleContent content={article.content} />
+           <p className="text-xl text-muted-foreground font-medium mb-8 pl-4 border-l-4 border-blue-500 italic">
+               {article.excerpt}
+           </p>
+           
+           {/* Rendu intelligent du contenu */}
+           <RenderArticleContent content={article.content} />
         </article>
 
+        {/* Articles Similaires */}
         {relatedArticles.length > 0 && (
-          <section className="border-t pt-12">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-1 h-8 bg-blue-500 rounded-full" />
-              <h2 className="text-2xl font-bold">Articles similaires</h2>
-            </div>
+          <section className="border-t pt-12 mt-12">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                <div className="w-1.5 h-6 bg-blue-500 rounded-full"/> À lire aussi
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {relatedArticles.map((related) => (
-                <RelatedArticleCard key={related.id} article={related} />
-              ))}
+              {relatedArticles.map(a => <RelatedArticleCard key={a.id} article={a} />)}
             </div>
           </section>
         )}
       </main>
 
-      <footer className="border-t bg-muted/30 mt-16">
-        <div className="max-w-7xl mx-auto px-4 py-8 text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} Allo Sports. Tous droits réservés.</p>
+      <footer className="border-t bg-muted/30 py-8 text-center text-sm text-muted-foreground mt-12">
+        <div className="max-w-7xl mx-auto px-4">
+            <p className="mb-2">© {new Date().getFullYear()} Allo Sports. Tous droits réservés.</p>
         </div>
       </footer>
     </div>
